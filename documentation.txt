@@ -1,0 +1,3 @@
+-Role based authentication for multiple users 
+-Created tests in test-auth.ts
+-Module for authentication is working
