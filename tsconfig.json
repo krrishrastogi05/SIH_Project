@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    /* 1. Project Structure - CRITICAL */
+    "rootDir": "./src",           /* Where your .ts files live */
+    "outDir": "./dist",           /* Where .js files get built */
+
+    /* 2. Module Settings - Matches your "type": "module" */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",           /* Modern Node.js support */
+
+    /* 3. Strictness & Safety */
+    "strict": true,               /* Enable all strict type-checking options */
+    "strictPropertyInitialization": false, /* Saves you from "Property has no initializer" errors */
+    "skipLibCheck": true,         /* Skips checking types in node_modules (saves headaches) */
+    "esModuleInterop": true,      /* Allows importing CommonJS modules like 'express' easily */
+    
+    /* 4. Cleanliness */
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  role      Role
+  name      String
+  phone     String   @unique
+  email     String?
+  state     String?
+  district  String?
+  block     String?
+  village   String?
+  income    Int?
+  age       Int?
+  gender    String?
+  documents Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  SchemeFeed SchemeFeed[]
+  Verifications BeneficiaryVerification[]
+}
+
+model SchemePoster {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  phone     String
+  email     String?
+  state     String?
+  district  String?
+  block     String?
+  createdAt DateTime @default(now())
+
+  schemes SchemePost[]
+}
+
+model SchemePost {
+  id          String   @id @default(uuid())
+  posterId    String
+  title       String
+  description String
+  incomeRequired Boolean @default(false)
+  minIncome   Int?
+  maxIncome   Int?
+  regionType  String?
+  state       String?
+  district    String?
+  block       String?
+  jobType     String?
+  paymentInfo Json?
+  additionalDocs Json?
+  status      SchemeStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  poster SchemePoster @relation(fields: [posterId], references: [id])
+  feeds  SchemeFeed[]
+  verifications BeneficiaryVerification[]
+}
+
+model SchemeFeed {
+  id        String @id @default(uuid())
+  schemeId  String
+  userId    String
+  eligibilityScore Int
+  status    FeedStatus @default(NOTIFIED)
+
+  scheme SchemePost @relation(fields: [schemeId], references: [id])
+  user   User       @relation(fields: [userId], references: [id])
+}
+
+model BeneficiaryVerification {
+  id        String   @id @default(uuid())
+  schemeId  String
+  userId    String
+  enumeratorId String?
+  documents Json?
+  remarks   String?
+  status    VerificationStatus @default(UNDER_REVIEW)
+
+  scheme   SchemePost @relation(fields: [schemeId], references: [id])
+  user     User       @relation(fields: [userId], references: [id])
+  enumerator User?    @relation("Enumerator", fields: [enumeratorId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  schemeId  String?
+  channel   String
+  message   String
+  lang      String
+  status    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  BENEFICIARY
+  ENUMERATOR
+  OFFICER
+  POSTER
+  ADMIN
+}
+
+enum SchemeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FeedStatus {
+  NOTIFIED
+  INTERESTED
+  APPLIED
+}
+
+enum VerificationStatus {
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
