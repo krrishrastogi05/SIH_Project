@@ -4,28 +4,27 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // This is correct for Prisma v5
 }
 
 model User {
-  id        String   @id @default(uuid())
-  role      Role
+  id        String   @id @default(cuid())
+  email     String   @unique
   name      String
-  phone     String   @unique
-  email     String?
-  state     String?
-  district  String?
-  block     String?
-  village   String?
-  income    Int?
-  age       Int?
-  gender    String?
-  documents Json?
+  phone     String?
+  password  String
+  role      Role     @default(BENEFICIARY)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Name this relation "UserVerifications" to resolve the ambiguity
+  beneficiaryVerifications BeneficiaryVerification[] @relation("UserVerifications")
+  enumeratorVerifications  BeneficiaryVerification[] @relation("Enumerator")
+  notifications            Notification[]
+
+  // You likely have an old field here named "Verifications". DELETE IT.
+  // Verifications BeneficiaryVerification[] // <-- DELETE THIS LINE
   SchemeFeed SchemeFeed[]
-  Verifications BeneficiaryVerification[]
 }
 
 model SchemePoster {
@@ -43,65 +42,63 @@ model SchemePoster {
 }
 
 model SchemePost {
-  id          String   @id @default(uuid())
-  posterId    String
-  title       String
-  description String
-  incomeRequired Boolean @default(false)
-  minIncome   Int?
-  maxIncome   Int?
-  regionType  String?
-  state       String?
-  district    String?
-  block       String?
-  jobType     String?
-  paymentInfo Json?
+  id             String       @id @default(uuid())
+  posterId       String
+  title          String
+  description    String
+  incomeRequired Boolean      @default(false)
+  minIncome      Int?
+  maxIncome      Int?
+  regionType     String?
+  state          String?
+  district       String?
+  block          String?
+  jobType        String?
+  paymentInfo    Json?
   additionalDocs Json?
-  status      SchemeStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status         SchemeStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  poster SchemePoster @relation(fields: [posterId], references: [id])
-  feeds  SchemeFeed[]
+  poster        SchemePoster              @relation(fields: [posterId], references: [id])
+  feeds         SchemeFeed[]
   verifications BeneficiaryVerification[]
 }
 
 model SchemeFeed {
-  id        String @id @default(uuid())
-  schemeId  String
-  userId    String
+  id               String     @id @default(uuid())
+  schemeId         String
+  userId           String
   eligibilityScore Int
-  status    FeedStatus @default(NOTIFIED)
+  status           FeedStatus @default(NOTIFIED)
 
   scheme SchemePost @relation(fields: [schemeId], references: [id])
   user   User       @relation(fields: [userId], references: [id])
 }
 
 model BeneficiaryVerification {
-  id        String   @id @default(uuid())
-  schemeId  String
-  userId    String
+  id           String   @id @default(cuid())
+  status       String   @default("PENDING")
+  feedback     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
   enumeratorId String?
-  documents Json?
-  remarks   String?
-  status    VerificationStatus @default(UNDER_REVIEW)
 
-  scheme   SchemePost @relation(fields: [schemeId], references: [id])
-  user     User       @relation(fields: [userId], references: [id])
-  enumerator User?    @relation("Enumerator", fields: [enumeratorId], references: [id])
+  // Add the same name "UserVerifications" here
+  user         User        @relation("UserVerifications", fields: [userId], references: [id])
+  enumerator   User?       @relation("Enumerator", fields: [enumeratorId], references: [id])
+  SchemePost   SchemePost? @relation(fields: [schemePostId], references: [id])
+  schemePostId String?
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  schemeId  String?
-  channel   String
+  id        String   @id @default(cuid())
   message   String
-  lang      String
-  status    String
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 enum Role {

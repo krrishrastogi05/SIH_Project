@@ -1,5 +1,5 @@
-import app from "./app";
-import { prisma } from "./db/prisma";
+import app from "./app.js"; // Added .js
+import { prisma } from "./db/prisma.js"; // Added .js
 
 const PORT = process.env.PORT || 8000;
 

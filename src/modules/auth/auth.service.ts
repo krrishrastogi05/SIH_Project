@@ -8,7 +8,10 @@ export class AuthService {
     const exists = await prisma.user.findUnique({
       where: { email: data.email },
     });
-    if (exists) throw new Error("User already exists");
+
+    if (exists) {
+      throw new Error("User already exists");
+    }
 
     const hashed = await bcrypt.hash(data.password, 10);
 
@@ -31,10 +34,15 @@ export class AuthService {
     const user = await prisma.user.findUnique({
       where: { email: data.email },
     });
-    if (!user) throw new Error("Invalid credentials");
+
+    if (!user) {
+      throw new Error("Invalid credentials");
+    }
 
     const match = await bcrypt.compare(data.password, user.password as string);
-    if (!match) throw new Error("Invalid credentials");
+    if (!match) {
+      throw new Error("Invalid credentials");
+    }
 
     const token = signToken({ id: user.id, role: user.role });
 
