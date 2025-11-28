@@ -8,6 +8,8 @@ import schemesRoutes from "./modules/schemes/schemes.routes.js";
 import enumeratorRoutes from "./modules/enumerator/enumerator.routes.js";
 import officerRoutes from "./modules/officer/officer.routes.js";
 
+import posterRoutes from "./modules/poster/poster.routes.js";
+
 
 
 
@@ -26,6 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
 // 2. CORS
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -38,6 +41,7 @@ app.use("/beneficiary", beneficiaryRoutes);
 app.use("/schemes", schemesRoutes);
 app.use("/enumerator", enumeratorRoutes);
 app.use("/officer", officerRoutes);
+app.use("/poster", posterRoutes);
 
 // HEALTH CHECK
 app.get("/health", (req, res) => {

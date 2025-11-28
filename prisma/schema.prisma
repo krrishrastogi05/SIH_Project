@@ -84,24 +84,21 @@ model SchemeFeed {
 }
 
 model BeneficiaryVerification {
-  id           String   @id @default(cuid())
-  status       String   @default("PENDING")
+  id           String              @id @default(cuid())
+  status       VerificationStatus  @default(UNDER_REVIEW)
   feedback     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   userId       String
   enumeratorId String?
-
-  // Added to match your seed script
   remarks      String?
   documents    Json?
-
   user         User        @relation("UserVerifications", fields: [userId], references: [id])
   enumerator   User?       @relation("Enumerator", fields: [enumeratorId], references: [id])
-
-  SchemePost   SchemePost? @relation(fields: [schemePostId], references: [id])
-  schemePostId String?
+  scheme       SchemePost? @relation(fields: [schemeId], references: [id])
+  schemeId     String?
 }
+
 
 model Notification {
   id        String   @id @default(cuid())
