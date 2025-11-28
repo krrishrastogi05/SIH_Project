@@ -3,12 +3,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./modules/auth/auth.routes.js"; // Added .js
+import beneficiaryRoutes from "./modules/beneficiary/beneficiary.routes.js";
 
 dotenv.config();
 
 const app: Application = express();
 
 // 1. Body Parsers MUST come before routes
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -21,6 +23,7 @@ app.use(cors({
 
 // 3. Routes
 app.use("/auth", authRoutes);
+app.use("/beneficiary", beneficiaryRoutes);
 
 // HEALTH CHECK
 app.get("/health", (req, res) => {

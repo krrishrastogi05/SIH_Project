@@ -1,3 +1,9 @@
 -Role based authentication for multiple users 
 -Created tests in test-auth.ts
 -Module for authentication is working
+
+
+
+What is seed.ts ?
+It is a dummy data insertion file inside the prisma directory
+Initial data needs to be inserted in db for carrying out tests
