@@ -4,6 +4,17 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./modules/auth/auth.routes.js"; // Added .js
 import beneficiaryRoutes from "./modules/beneficiary/beneficiary.routes.js";
+import schemesRoutes from "./modules/schemes/schemes.routes.js";
+import enumeratorRoutes from "./modules/enumerator/enumerator.routes.js";
+import officerRoutes from "./modules/officer/officer.routes.js";
+
+
+
+
+
+
+
+
 
 dotenv.config();
 
@@ -24,6 +35,9 @@ app.use(cors({
 // 3. Routes
 app.use("/auth", authRoutes);
 app.use("/beneficiary", beneficiaryRoutes);
+app.use("/schemes", schemesRoutes);
+app.use("/enumerator", enumeratorRoutes);
+app.use("/officer", officerRoutes);
 
 // HEALTH CHECK
 app.get("/health", (req, res) => {

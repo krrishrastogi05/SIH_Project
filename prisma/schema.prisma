@@ -137,3 +137,13 @@ enum VerificationStatus {
   APPROVED
   REJECTED
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  role      String
+  action    String
+  target    String
+  timestamp DateTime @default(now())
+}
+
