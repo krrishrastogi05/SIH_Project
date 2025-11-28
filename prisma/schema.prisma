@@ -70,6 +70,7 @@ model SchemePost {
   poster        SchemePoster              @relation(fields: [posterId], references: [id])
   feeds         SchemeFeed[]
   verifications BeneficiaryVerification[]
+  csvLogs   CsvLog[]
 }
 
 model SchemeFeed {
@@ -104,9 +105,11 @@ model Notification {
   id        String   @id @default(cuid())
   message   String
   read      Boolean  @default(false)
+  status    JobStatus @default(PENDING) // <-- ADD THIS LINE
   createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
 }
 
 enum Role {
@@ -133,6 +136,26 @@ enum VerificationStatus {
   UNDER_REVIEW
   APPROVED
   REJECTED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model CsvLog {
+  id        String    @id @default(cuid())
+  status    JobStatus @default(PENDING)
+  filePath  String?   // URL to the generated CSV file in Cloudinary
+  error     String?   // To store any error messages
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relation to the scheme the CSV is for
+  schemeId  String
+  scheme    SchemePost @relation(fields: [schemeId], references: [id])
 }
 
 model AuditLog {
