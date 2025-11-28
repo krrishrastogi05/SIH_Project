@@ -7,3 +7,18 @@
 What is seed.ts ?
 It is a dummy data insertion file inside the prisma directory
 Initial data needs to be inserted in db for carrying out tests
+
+
+
+
+
+
+
+
+
+--28/11/2025 
+Krrish
+Added workers and test files 
+modules like csvCreator, notifications and messaging
+Update the schema in accordance to notifications 
+Note down errors encountered in the process
