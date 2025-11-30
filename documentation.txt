@@ -8,6 +8,9 @@ What is seed.ts ?
 It is a dummy data insertion file inside the prisma directory
 Initial data needs to be inserted in db for carrying out tests
 
+added new module verifcation which was required as we changed the verification logic
+changed the prisma schema for the same
+
 
 
 
