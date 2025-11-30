@@ -1,5 +1,3 @@
-// FILE: prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,65 +8,50 @@ datasource db {
 }
 
 //////////////////////////////////////
-// USER MODEL (UPDATED)
+// USER MODEL
 //////////////////////////////////////
 model User {
-  id        String   @id @default(uuid())
+  id       String @id @default(uuid())
+  scId     String @unique  // Beneficiary SC ID
+  name     String
+  email    String? @unique  // Optional for beneficiaries
+  phone    String? @unique  // For login
+  password String
+  role     Role    @default(BENEFICIARY)
 
-  scId      String   @unique          // Beneficiary login ID
-  name      String
-  email     String?  @unique          // Optional for beneficiaries
-  phone     String?
+  // KYC Fields
+  aadhaar      String? @unique
+  casteCert    String?
+  incomeCert   String?
+  profileImage String?
 
-  password  String?
-  role      Role     @default(BENEFICIARY)
+  // Socio-Economic
+  income    Int?
+  age       Int?
+  gender    String?
+  education EducationLevel?
+  skill     SkillLevel?
 
-  //////////////////////////////////////
-  // KYC FIELDS
-  //////////////////////////////////////
-  aadhaar       String? @unique
-  casteCert     String?
-  incomeCert    String?
-  profileImage  String?
+  // Address
+  state    String?
+  district String?
+  block    String?
+  pincode  String?
 
-  //////////////////////////////////////
-  // SOCIO-ECONOMIC FIELDS
-  //////////////////////////////////////
-  income        Int?
-  age           Int?
-  gender        String?
-  education     EducationLevel?
-  skill         SkillLevel?
+  // Bank Details
+  bankAccount String?
+  ifsc        String?
 
-  //////////////////////////////////////
-  // ADDRESS
-  //////////////////////////////////////
-  state     String?
-  district  String?
-  block     String?
-
-  //////////////////////////////////////
-  // BANK DETAILS
-  //////////////////////////////////////
-  bankAccount  String?
-  ifsc         String?
-
-  //////////////////////////////////////
-  // VERIFICATION WORKFLOW
-  //////////////////////////////////////
+  // Verification
   verificationStatus  VerificationStatus @default(PENDING)
   verificationRemarks String?
-  documents           String[]           // Array of Cloudinary URLs
+  documents           String[] // Array of URLs
 
-  //////////////////////////////////////
-  // TIMESTAMPS
-  //////////////////////////////////////
+  // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  //////////////////////////////////////
-  // RELATIONS
-  //////////////////////////////////////
+  // Relations
   schemeFeeds              SchemeFeed[]
   beneficiaryVerifications BeneficiaryVerification[] @relation("UserVerifications")
   enumeratorVerifications  BeneficiaryVerification[] @relation("Enumerator")
@@ -76,98 +59,123 @@ model User {
 }
 
 //////////////////////////////////////
-// OTHER MODELS (EXISTING - KEEP AS IS)
+// SCHEME POSTER
 //////////////////////////////////////
 model SchemePoster {
   id        String   @id @default(uuid())
   name      String
-  type      String
+  type      String   // GOV/NGO
   phone     String
   email     String?
   state     String?
   district  String?
   block     String?
   createdAt DateTime @default(now())
-  
-  schemes   SchemePost[]
+
+  schemes SchemePost[]
 }
 
+//////////////////////////////////////
+// SCHEME POST
+//////////////////////////////////////
 model SchemePost {
-  id              String        @id @default(uuid())
-  posterId        String
-  title           String
-  description     String
-  incomeRequired  Boolean       @default(false)
-  minIncome       Int?
-  maxIncome       Int?
-  regionType      String?
-  state           String?
-  district        String?
-  block           String?
-  jobType         String?
-  paymentInfo     Json?
-  additionalDocs  Json?
-  status          SchemeStatus  @default(PENDING)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  poster          SchemePoster  @relation(fields: [posterId], references: [id])
-  feeds           SchemeFeed[]
-  verifications   BeneficiaryVerification[]
-  csvLogs         CsvLog[]
+  id             String       @id @default(uuid())
+  posterId       String
+  title          String
+  description    String
+  incomeRequired Boolean      @default(false)
+  minIncome      Int?
+  maxIncome      Int?
+  minAge         Int?
+  maxAge         Int?
+  requiredEducation EducationLevel?
+  requiredSkill  SkillLevel?
+  regionType     String?
+  state          String?
+  district       String?
+  block          String?
+  jobType        String?
+  paymentInfo    Json?
+  additionalDocs Json?
+  status         SchemeStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  poster        SchemePoster              @relation(fields: [posterId], references: [id])
+  feeds         SchemeFeed[]
+  verifications BeneficiaryVerification[]
+  csvLogs       CsvLog[]
 }
 
+//////////////////////////////////////
+// SCHEME FEED
+//////////////////////////////////////
 model SchemeFeed {
-  id               String      @id @default(uuid())
+  id               String             @id @default(uuid())
   schemeId         String
   userId           String
-  eligibilityScore Int
-  status           FeedStatus  @default(NOTIFIED)
-  
-  scheme           SchemePost  @relation(fields: [schemeId], references: [id])
-  user             User        @relation(fields: [userId], references: [id])
+  eligibilityScore Int?
+  status           SchemeFeedStatus   @default(NOTIFIED)
+  appliedDocs      Json?
+  createdAt        DateTime           @default(now())
+
+  scheme SchemePost @relation(fields: [schemeId], references: [id])
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@unique([userId, schemeId])
 }
 
+//////////////////////////////////////
+// BENEFICIARY VERIFICATION
+//////////////////////////////////////
 model BeneficiaryVerification {
-  id            String              @id @default(cuid())
-  status        VerificationStatus  @default(UNDER_REVIEW)
-  feedback      String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  userId        String
-  enumeratorId  String?
-  remarks       String?
-  documents     Json?
-  schemeId      String?
-  
-  user          User                @relation("UserVerifications", fields: [userId], references: [id])
-  enumerator    User?               @relation("Enumerator", fields: [enumeratorId], references: [id])
-  scheme        SchemePost?         @relation(fields: [schemeId], references: [id])
+  id           String             @id @default(uuid())
+  userId       String
+  enumeratorId String?
+  schemeId     String?
+  status       VerificationStatus @default(UNDER_REVIEW)
+  remarks      String?
+  documents    Json?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user       User        @relation("UserVerifications", fields: [userId], references: [id])
+  enumerator User?       @relation("Enumerator", fields: [enumeratorId], references: [id])
+  scheme     SchemePost? @relation(fields: [schemeId], references: [id])
 }
 
+//////////////////////////////////////
+// NOTIFICATION
+//////////////////////////////////////
 model Notification {
-  id        String   @id @default(cuid())
-  message   String
-  read      Boolean  @default(false)
-  status    JobStatus @default(PENDING)
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid())
   userId    String
-  
-  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  read      Boolean   @default(false)
+  status    JobStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
+//////////////////////////////////////
+// CSV LOG
+//////////////////////////////////////
 model CsvLog {
-  id        String    @id @default(cuid())
+  id        String    @id @default(uuid())
+  schemeId  String
   status    JobStatus @default(PENDING)
   filePath  String?
   error     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  schemeId  String
-  
-  scheme    SchemePost @relation(fields: [schemeId], references: [id])
+
+  scheme SchemePost @relation(fields: [schemeId], references: [id])
 }
 
+//////////////////////////////////////
+// AUDIT LOG
+//////////////////////////////////////
 model AuditLog {
   id        String   @id @default(uuid())
   actorId   String
@@ -203,10 +211,10 @@ enum VerificationStatus {
 }
 
 enum EducationLevel {
-  NONE
-  SCHOOL
-  UG
-  PG
+  MATRICULATION
+  HIGHER_SECONDARY
+  GRADUATION
+  POST_GRADUATION
   DIPLOMA
   PHD
 }
@@ -229,206 +237,9 @@ enum SchemeFeedStatus {
   UNDER_REVIEW
 }
 
-///////////////////////////////////////////////////////
-// USER (BENEFICIARY / ENUMERATOR / OFFICER / ADMIN)
-///////////////////////////////////////////////////////
-
-model User {
-  id        String   @id @default(uuid())
-
-  scId      String   @unique          // NEW
-  name      String
-  email     String   @unique
-  phone     String?
-
-  password  String?
-  role      Role
-
-  //////////////////////////////////////
-  // KYC FIELDS (NEW)
-  //////////////////////////////////////
-  aadhaar       String? @unique
-  casteCert     String?
-  incomeCert    String?
-  profileImage  String?
-
-  //////////////////////////////////////
-  // SOCIO-ECONOMIC FIELDS
-  //////////////////////////////////////
-  income        Int?
-  age           Int?
-  gender        String?
-  education     EducationLevel?
-  skill         SkillLevel?
-
-  //////////////////////////////////////
-  // ADDRESS
-  //////////////////////////////////////
-  state     String?
-  district  String?
-  block     String?
-
-  //////////////////////////////////////
-  // BANK DETAILS
-  //////////////////////////////////////
-  bankAccount  String?
-  ifsc         String?
-
-  //////////////////////////////////////
-  // VERIFICATION WORKFLOW
-  //////////////////////////////////////
-  verificationStatus  VerificationStatus @default(PENDING)
-  verificationRemarks String?
-  documents           String[]           // existing
-
-  //////////////////////////////////////
-  // RELATIONS
-  //////////////////////////////////////
-  schemeFeeds   SchemeFeed[]
-  beneficiaryVerifications BeneficiaryVerification[]
-
-  //////////////////////////////////////
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-///////////////////////////////////////////////////////
-// SCHEME POSTER
-///////////////////////////////////////////////////////
-
-model SchemePoster {
-  id        String   @id @default(uuid())
-  name      String
-  type      String   // GOV / NGO
-  phone     String
-  email     String?
-  state     String?
-  district  String?
-  block     String?
-
-  schemes   SchemePost[]
-}
-
-///////////////////////////////////////////////////////
-// SCHEME POST
-///////////////////////////////////////////////////////
-
-model SchemePost {
-  id        String   @id @default(uuid())
-
-  posterId  String
-  poster    SchemePoster @relation(fields: [posterId], references: [id])
-
-  title       String
-  description String
-
-  //////////////////////////////////////
-  // INCOME RULES (already existed)
-  //////////////////////////////////////
-  incomeRequired Boolean
-  minIncome      Int?
-  maxIncome      Int?
-
-  //////////////////////////////////////
-  // NEW ELIGIBILITY FIELDS
-  //////////////////////////////////////
-  minAge         Int?
-  maxAge         Int?
-  requiredEducation EducationLevel?
-  requiredSkill  SkillLevel?
-
-  additionalDocs Json?  // poster-defined
-
-  jobType     String
-  paymentInfo Json?
-
-  regionType  String
-  state       String
-  district    String
-  block       String
-
-  status      SchemeStatus @default(PENDING)
-
-  schemeFeeds SchemeFeed[]
-  beneficiaryVerifications BeneficiaryVerification?[]
-
-  createdAt DateTime @default(now())
-}
-
-///////////////////////////////////////////////////////
-// SCHEME FEED (Eligibility + Apply + Notifications)
-///////////////////////////////////////////////////////
-
-model SchemeFeed {
-  id        String   @id @default(uuid())
-
-  userId    String
-  schemeId  String
-
-  user      User       @relation(fields: [userId], references: [id])
-  scheme    SchemePost @relation(fields: [schemeId], references: [id])
-
-  eligibilityScore Int?
-  status      SchemeFeedStatus @default(NOTIFIED)
-
-  appliedDocs Json?  // NEW: documents user uploaded during apply
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, schemeId])
-}
-
-///////////////////////////////////////////////////////
-// BENEFICIARY VERIFICATION (Enumerator / Aadhaar)
-///////////////////////////////////////////////////////
-
-model BeneficiaryVerification {
-  id          String   @id @default(uuid())
-
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-
-  schemeId    String?
-  SchemePost  SchemePost? @relation(fields: [schemeId], references: [id])
-
-  enumeratorId String?
-  enumerator   User?     @relation("EnumeratorVerification", fields: [enumeratorId], references: [id])
-
-  status      VerificationStatus
-  remarks     String?
-  documents   Json?
-  createdAt   DateTime @default(now())
-}
-
-///////////////////////////////////////////////////////
-// AUDIT LOG
-///////////////////////////////////////////////////////
-
-model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String
-  role      String
-  action    String
-  target    String
-  timestamp DateTime @default(now())
-}
-
-///////////////////////////////////////////////////////
-// CSV REPORTS
-///////////////////////////////////////////////////////
-
-model CsvReport {
-  id          String   @id @default(uuid())
-  schemeId    String?
-  generatedBy String?
-  filters     Json
-  status      String
-  fileUrl     String?
-  createdAt   DateTime @default(now())
-}
-
-model CsvLog {
-  id        String @id @default(uuid())
-  schemeId  String
-  createdAt DateTime @default(now())
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
