@@ -1,3 +1,5 @@
+// FILE: prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,33 +9,75 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//////////////////////////////////////
+// USER MODEL (UPDATED)
+//////////////////////////////////////
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String   @id @default(uuid())
+
+  scId      String   @unique          // Beneficiary login ID
   name      String
+  email     String?  @unique          // Optional for beneficiaries
   phone     String?
-  password  String
+
+  password  String?
   role      Role     @default(BENEFICIARY)
 
-  // Newly added fields
+  //////////////////////////////////////
+  // KYC FIELDS
+  //////////////////////////////////////
+  aadhaar       String? @unique
+  casteCert     String?
+  incomeCert    String?
+  profileImage  String?
+
+  //////////////////////////////////////
+  // SOCIO-ECONOMIC FIELDS
+  //////////////////////////////////////
+  income        Int?
+  age           Int?
+  gender        String?
+  education     EducationLevel?
+  skill         SkillLevel?
+
+  //////////////////////////////////////
+  // ADDRESS
+  //////////////////////////////////////
   state     String?
   district  String?
   block     String?
-  income    Int?
-  age       Int?
-  gender    String?
 
-  documents String[] // <-- ADD THIS LINE
+  //////////////////////////////////////
+  // BANK DETAILS
+  //////////////////////////////////////
+  bankAccount  String?
+  ifsc         String?
 
+  //////////////////////////////////////
+  // VERIFICATION WORKFLOW
+  //////////////////////////////////////
+  verificationStatus  VerificationStatus @default(PENDING)
+  verificationRemarks String?
+  documents           String[]           // Array of Cloudinary URLs
+
+  //////////////////////////////////////
+  // TIMESTAMPS
+  //////////////////////////////////////
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+  schemeFeeds              SchemeFeed[]
   beneficiaryVerifications BeneficiaryVerification[] @relation("UserVerifications")
   enumeratorVerifications  BeneficiaryVerification[] @relation("Enumerator")
   notifications            Notification[]
-  schemeFeeds              SchemeFeed[]
 }
 
+//////////////////////////////////////
+// OTHER MODELS (EXISTING - KEEP AS IS)
+//////////////////////////////////////
 model SchemePoster {
   id        String   @id @default(uuid())
   name      String
@@ -44,74 +88,98 @@ model SchemePoster {
   district  String?
   block     String?
   createdAt DateTime @default(now())
-
-  schemes SchemePost[]
+  
+  schemes   SchemePost[]
 }
 
 model SchemePost {
-  id             String       @id @default(uuid())
-  posterId       String
-  title          String
-  description    String
-  incomeRequired Boolean      @default(false)
-  minIncome      Int?
-  maxIncome      Int?
-  regionType     String?
-  state          String?
-  district       String?
-  block          String?
-  jobType        String?
-  paymentInfo    Json?
-  additionalDocs Json?
-  status         SchemeStatus @default(PENDING)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  poster        SchemePoster              @relation(fields: [posterId], references: [id])
-  feeds         SchemeFeed[]
-  verifications BeneficiaryVerification[]
-  csvLogs   CsvLog[]
+  id              String        @id @default(uuid())
+  posterId        String
+  title           String
+  description     String
+  incomeRequired  Boolean       @default(false)
+  minIncome       Int?
+  maxIncome       Int?
+  regionType      String?
+  state           String?
+  district        String?
+  block           String?
+  jobType         String?
+  paymentInfo     Json?
+  additionalDocs  Json?
+  status          SchemeStatus  @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  poster          SchemePoster  @relation(fields: [posterId], references: [id])
+  feeds           SchemeFeed[]
+  verifications   BeneficiaryVerification[]
+  csvLogs         CsvLog[]
 }
 
 model SchemeFeed {
-  id               String     @id @default(uuid())
+  id               String      @id @default(uuid())
   schemeId         String
   userId           String
   eligibilityScore Int
-  status           FeedStatus @default(NOTIFIED)
-
-  scheme SchemePost @relation(fields: [schemeId], references: [id])
-  user   User       @relation(fields: [userId], references: [id])
+  status           FeedStatus  @default(NOTIFIED)
+  
+  scheme           SchemePost  @relation(fields: [schemeId], references: [id])
+  user             User        @relation(fields: [userId], references: [id])
 }
 
 model BeneficiaryVerification {
-  id           String              @id @default(cuid())
-  status       VerificationStatus  @default(UNDER_REVIEW)
-  feedback     String?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  userId       String
-  enumeratorId String?
-  remarks      String?
-  documents    Json?
-  user         User        @relation("UserVerifications", fields: [userId], references: [id])
-  enumerator   User?       @relation("Enumerator", fields: [enumeratorId], references: [id])
-  scheme       SchemePost? @relation(fields: [schemeId], references: [id])
-  schemeId     String?
+  id            String              @id @default(cuid())
+  status        VerificationStatus  @default(UNDER_REVIEW)
+  feedback      String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  userId        String
+  enumeratorId  String?
+  remarks       String?
+  documents     Json?
+  schemeId      String?
+  
+  user          User                @relation("UserVerifications", fields: [userId], references: [id])
+  enumerator    User?               @relation("Enumerator", fields: [enumeratorId], references: [id])
+  scheme        SchemePost?         @relation(fields: [schemeId], references: [id])
 }
-
 
 model Notification {
   id        String   @id @default(cuid())
   message   String
   read      Boolean  @default(false)
-  status    JobStatus @default(PENDING) // <-- ADD THIS LINE
+  status    JobStatus @default(PENDING)
   createdAt DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
+  userId    String
+  
+  user      User     @relation(fields: [userId], references: [id])
 }
 
+model CsvLog {
+  id        String    @id @default(cuid())
+  status    JobStatus @default(PENDING)
+  filePath  String?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  schemeId  String
+  
+  scheme    SchemePost @relation(fields: [schemeId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  role      String
+  action    String
+  target    String
+  timestamp DateTime @default(now())
+}
+
+//////////////////////////////////////
+// ENUMS
+//////////////////////////////////////
 enum Role {
   BENEFICIARY
   ENUMERATOR
@@ -133,9 +201,10 @@ enum FeedStatus {
 }
 
 enum VerificationStatus {
-  UNDER_REVIEW
+  PENDING
   APPROVED
   REJECTED
+  UNDER_REVIEW
 }
 
 enum JobStatus {
@@ -145,25 +214,15 @@ enum JobStatus {
   FAILED
 }
 
-model CsvLog {
-  id        String    @id @default(cuid())
-  status    JobStatus @default(PENDING)
-  filePath  String?   // URL to the generated CSV file in Cloudinary
-  error     String?   // To store any error messages
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relation to the scheme the CSV is for
-  schemeId  String
-  scheme    SchemePost @relation(fields: [schemeId], references: [id])
+enum EducationLevel {
+  MATRICULATION
+  HIGHER_SECONDARY
+  GRADUATION
+  POST_GRADUATION
 }
 
-model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String
-  role      String
-  action    String
-  target    String
-  timestamp DateTime @default(now())
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
-
