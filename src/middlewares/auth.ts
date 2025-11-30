@@ -9,15 +9,22 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
       return res.status(401).json({ message: "Unauthorized: Missing token" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
 
-    if (!decoded) {
-      return res.status(401).json({ message: "Unauthorized: Invalid token" });
+    req.user = decoded;
+
+    // BLOCK Beneficiary if not verified
+    if (decoded.role === "BENEFICIARY") {
+      if (decoded.verificationStatus !== "VERIFIED") {
+        return res.status(403).json({
+          message: "VERIFICATION_REQUIRED",
+          status: decoded.verificationStatus
+        });
+      }
     }
 
-    req.user = decoded as any;
-
     return next();
+
   } catch (err: any) {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
