@@ -14,6 +14,8 @@ changed the prisma schema for the same
 updated auth module so that it is compatible with all other modules
 consequently changed the jwt.ts and auth.js middleware to match the corrected or updated logic
 
+updated enumerator module to make it more robust 
+
 
 
 
