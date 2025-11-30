@@ -1,3 +1,5 @@
+// backend/src/modules/beneficiary/beneficiary.routes.ts
+
 import { Router } from "express";
 import { BeneficiaryController } from "./beneficiary.controller.js";
 import { BeneficiaryRegisterController } from "./beneficiary-register.controller.js";

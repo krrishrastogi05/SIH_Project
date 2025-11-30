@@ -192,37 +192,243 @@ enum SchemeStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-enum FeedStatus {
-  NOTIFIED
-  INTERESTED
-  APPLIED
+  PUBLISHED
 }
 
 enum VerificationStatus {
   PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum EducationLevel {
+  NONE
+  SCHOOL
+  UG
+  PG
+  DIPLOMA
+  PHD
+}
+
+enum SkillLevel {
+  NONE
+  BASIC_COMPUTER
+  TENTH_PASS
+  TWELFTH_PASS
+  ITI
+  POLYTECHNIC
+  GRADUATE
+}
+
+enum SchemeFeedStatus {
+  NOTIFIED
+  APPLIED
   APPROVED
   REJECTED
   UNDER_REVIEW
 }
 
-enum JobStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+///////////////////////////////////////////////////////
+// USER (BENEFICIARY / ENUMERATOR / OFFICER / ADMIN)
+///////////////////////////////////////////////////////
+
+model User {
+  id        String   @id @default(uuid())
+
+  scId      String   @unique          // NEW
+  name      String
+  email     String   @unique
+  phone     String?
+
+  password  String?
+  role      Role
+
+  //////////////////////////////////////
+  // KYC FIELDS (NEW)
+  //////////////////////////////////////
+  aadhaar       String? @unique
+  casteCert     String?
+  incomeCert    String?
+  profileImage  String?
+
+  //////////////////////////////////////
+  // SOCIO-ECONOMIC FIELDS
+  //////////////////////////////////////
+  income        Int?
+  age           Int?
+  gender        String?
+  education     EducationLevel?
+  skill         SkillLevel?
+
+  //////////////////////////////////////
+  // ADDRESS
+  //////////////////////////////////////
+  state     String?
+  district  String?
+  block     String?
+
+  //////////////////////////////////////
+  // BANK DETAILS
+  //////////////////////////////////////
+  bankAccount  String?
+  ifsc         String?
+
+  //////////////////////////////////////
+  // VERIFICATION WORKFLOW
+  //////////////////////////////////////
+  verificationStatus  VerificationStatus @default(PENDING)
+  verificationRemarks String?
+  documents           String[]           // existing
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+  schemeFeeds   SchemeFeed[]
+  beneficiaryVerifications BeneficiaryVerification[]
+
+  //////////////////////////////////////
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-enum EducationLevel {
-  MATRICULATION
-  HIGHER_SECONDARY
-  GRADUATION
-  POST_GRADUATION
+///////////////////////////////////////////////////////
+// SCHEME POSTER
+///////////////////////////////////////////////////////
+
+model SchemePoster {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // GOV / NGO
+  phone     String
+  email     String?
+  state     String?
+  district  String?
+  block     String?
+
+  schemes   SchemePost[]
 }
 
-enum SkillLevel {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
+///////////////////////////////////////////////////////
+// SCHEME POST
+///////////////////////////////////////////////////////
+
+model SchemePost {
+  id        String   @id @default(uuid())
+
+  posterId  String
+  poster    SchemePoster @relation(fields: [posterId], references: [id])
+
+  title       String
+  description String
+
+  //////////////////////////////////////
+  // INCOME RULES (already existed)
+  //////////////////////////////////////
+  incomeRequired Boolean
+  minIncome      Int?
+  maxIncome      Int?
+
+  //////////////////////////////////////
+  // NEW ELIGIBILITY FIELDS
+  //////////////////////////////////////
+  minAge         Int?
+  maxAge         Int?
+  requiredEducation EducationLevel?
+  requiredSkill  SkillLevel?
+
+  additionalDocs Json?  // poster-defined
+
+  jobType     String
+  paymentInfo Json?
+
+  regionType  String
+  state       String
+  district    String
+  block       String
+
+  status      SchemeStatus @default(PENDING)
+
+  schemeFeeds SchemeFeed[]
+  beneficiaryVerifications BeneficiaryVerification?[]
+
+  createdAt DateTime @default(now())
+}
+
+///////////////////////////////////////////////////////
+// SCHEME FEED (Eligibility + Apply + Notifications)
+///////////////////////////////////////////////////////
+
+model SchemeFeed {
+  id        String   @id @default(uuid())
+
+  userId    String
+  schemeId  String
+
+  user      User       @relation(fields: [userId], references: [id])
+  scheme    SchemePost @relation(fields: [schemeId], references: [id])
+
+  eligibilityScore Int?
+  status      SchemeFeedStatus @default(NOTIFIED)
+
+  appliedDocs Json?  // NEW: documents user uploaded during apply
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, schemeId])
+}
+
+///////////////////////////////////////////////////////
+// BENEFICIARY VERIFICATION (Enumerator / Aadhaar)
+///////////////////////////////////////////////////////
+
+model BeneficiaryVerification {
+  id          String   @id @default(uuid())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  schemeId    String?
+  SchemePost  SchemePost? @relation(fields: [schemeId], references: [id])
+
+  enumeratorId String?
+  enumerator   User?     @relation("EnumeratorVerification", fields: [enumeratorId], references: [id])
+
+  status      VerificationStatus
+  remarks     String?
+  documents   Json?
+  createdAt   DateTime @default(now())
+}
+
+///////////////////////////////////////////////////////
+// AUDIT LOG
+///////////////////////////////////////////////////////
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  role      String
+  action    String
+  target    String
+  timestamp DateTime @default(now())
+}
+
+///////////////////////////////////////////////////////
+// CSV REPORTS
+///////////////////////////////////////////////////////
+
+model CsvReport {
+  id          String   @id @default(uuid())
+  schemeId    String?
+  generatedBy String?
+  filters     Json
+  status      String
+  fileUrl     String?
+  createdAt   DateTime @default(now())
+}
+
+model CsvLog {
+  id        String @id @default(uuid())
+  schemeId  String
+  createdAt DateTime @default(now())
 }

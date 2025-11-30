@@ -1,16 +1,15 @@
 import { Request, Response } from "express";
-import { AuthService } from "./auth.service.js"; // Added .js
-import { registerSchema, loginSchema } from "./auth.schema.js"; // Added .js
+import { AuthService } from "./auth.service.js";
+import { registerSchema, loginSchema } from "./auth.schema.js";
 
 export class AuthController {
+
   static async register(req: Request, res: Response) {
     try {
       const parse = registerSchema.safeParse(req.body);
-      if (!parse.success) {
-        return res.status(400).json(parse.error);
-      }
+      if (!parse.success) return res.status(400).json(parse.error);
 
-      const { user, token } = await AuthService.register(parse.data);
+      const { user, token } = await new AuthService().register(parse.data);
 
       res.cookie("token", token, {
         httpOnly: true,
@@ -28,11 +27,17 @@ export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const parse = loginSchema.safeParse(req.body);
-      if (!parse.success) {
-        return res.status(400).json(parse.error);
-      }
+      if (!parse.success) return res.status(400).json(parse.error);
 
-      const result = await AuthService.login(parse.data);
+      const result = await new AuthService().login(parse.data);
+
+      if (result.blocked) {
+        return res.status(403).json({
+          message: "VERIFICATION_REQUIRED",
+          status: result.status,
+          remarks: result.remarks
+        });
+      }
 
       res.cookie("token", result.token, {
         httpOnly: true,
@@ -46,6 +51,7 @@ export class AuthController {
         user: result.user,
         token: result.token
       });
+
     } catch (error: any) {
       return res.status(401).json({ message: error.message });
     }

@@ -1,7 +1,9 @@
+// backend/src/modules/beneficiary/beneficiary.schema.ts
 import { z } from "zod";
 
 export const applySchema = z.object({
-  schemeId: z.string().min(1)
+  schemeId: z.string().min(1),
+  documents: z.record(z.string().url()).optional()  // NEW
 });
 
 export const uploadDocsSchema = z.object({

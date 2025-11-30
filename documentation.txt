@@ -8,7 +8,13 @@ What is seed.ts ?
 It is a dummy data insertion file inside the prisma directory
 Initial data needs to be inserted in db for carrying out tests
 
+added new module verifcation which was required as we changed the verification logic
+changed the prisma schema for the same
 
+updated auth module so that it is compatible with all other modules
+consequently changed the jwt.ts and auth.js middleware to match the corrected or updated logic
+
+updated enumerator module to make it more robust 
 
 
 
