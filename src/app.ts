@@ -8,7 +8,7 @@ import schemesRoutes from "./modules/schemes/schemes.routes.js";
 import enumeratorRoutes from "./modules/enumerator/enumerator.routes.js";
 import officerRoutes from "./modules/officer/officer.routes.js";
 
-import posterRoutes from "./modules/poster/poster.routes.js";
+
 import verificationRoutes from "./modules/verification/verification.routes.js";
 
 
@@ -42,7 +42,7 @@ app.use("/beneficiary", beneficiaryRoutes);
 app.use("/schemes", schemesRoutes);
 app.use("/enumerator", enumeratorRoutes);
 app.use("/officer", officerRoutes);
-app.use("/poster", posterRoutes);
+
 app.use("/verification", verificationRoutes);
 
 // HEALTH CHECK

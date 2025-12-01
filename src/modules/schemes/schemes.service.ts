@@ -1,76 +1,60 @@
 import { prisma } from "../../db/prisma.js";
-import {
-  CreateSchemeInput,
-  ListSchemesQueryInput
-} from "./schemes.schema.js";
+import { CreateSchemeInput } from "./schemes.schema.js";
+import type { z } from "zod";
+import type { listSchemesQuerySchema } from "./schemes.schema.js";
 
-export class SchemesService {
-  static async listPublicSchemes(query: ListSchemesQueryInput) {
-    const { state, district, block, search, page, pageSize } = query;
+export class SchemeService {
+  static async createScheme(data: CreateSchemeInput) {
+    const { location, ...schemeData } = data;
 
-    const where: any = {
-      status: "APPROVED"
-    };
+    return prisma.scheme.create({
+      data: {
+        ...schemeData,
+        state: location.state,
+        district: location.district,
+        pincode: location.pincode,
+      },
+    });
+  }
 
-    if (state) where.state = state;
-    if (district) where.district = district;
-    if (block) where.block = block;
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } }
-      ];
-    }
-
+  static async listPublicSchemes(
+    query: z.infer<typeof listSchemesQuerySchema>
+  ) {
+    const { page, pageSize, state, district, search } = query;
     const skip = (page - 1) * pageSize;
 
-    const [items, total] = await Promise.all([
-      prisma.schemePost.findMany({
+    const where: any = {};
+    if (state) where.state = state;
+    if (district) where.district = district;
+    if (search) {
+      where.title = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
+
+    const [items, total] = await prisma.$transaction([
+      prisma.scheme.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
       }),
-      prisma.schemePost.count({ where })
+      prisma.scheme.count({ where }),
     ]);
 
     return {
       items,
-      pagination: {
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize)
-      }
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 
   static async getSchemeById(id: string) {
-    return prisma.schemePost.findUnique({
-      where: { id }
-    });
-  }
-
-  // For later use by poster/officer modules
-  static async createScheme(data: CreateSchemeInput) {
-    return prisma.schemePost.create({
-      data: {
-        posterId: data.posterId,
-        title: data.title,
-        description: data.description,
-        incomeRequired: data.incomeRequired,
-        minIncome: data.minIncome ?? null,
-        maxIncome: data.maxIncome ?? null,
-        regionType: data.regionType,
-        state: data.state,
-        district: data.district,
-        block: data.block,
-        jobType: data.jobType,
-        paymentInfo: data.paymentInfo ?? {},
-        additionalDocs: data.additionalDocs ?? {},
-        status: "PENDING"
-      }
+    return prisma.scheme.findUnique({
+      where: { id },
     });
   }
 }

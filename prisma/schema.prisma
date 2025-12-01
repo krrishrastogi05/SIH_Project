@@ -11,11 +11,11 @@ datasource db {
 // USER MODEL
 //////////////////////////////////////
 model User {
-  id       String @id @default(uuid())
-  scId     String @unique  // Beneficiary SC ID
+  id       String  @id @default(uuid())
+  scId     String  @unique // Beneficiary SC ID
   name     String
-  email    String? @unique  // Optional for beneficiaries
-  phone    String? @unique  // For login
+  email    String? @unique // Optional for beneficiaries
+  phone    String? @unique // For login
   password String
   role     Role    @default(BENEFICIARY)
 
@@ -59,68 +59,40 @@ model User {
 }
 
 //////////////////////////////////////
-// SCHEME POSTER
+// SCHEME MODEL
 //////////////////////////////////////
-model SchemePoster {
-  id        String   @id @default(uuid())
-  name      String
-  type      String   // GOV/NGO
-  phone     String
-  email     String?
-  state     String?
-  district  String?
-  block     String?
-  createdAt DateTime @default(now())
+model Scheme {
+  id           String   @id @default(cuid())
+  schemeId     String   @unique // e.g., SCH-EDU-001
+  title        String
+  schemeType   String // "education", "housing", "employment", "financial"
+  baseCriteria Json // Store base criteria object
+  extraFields  Json // Store extra fields config
+  state        String
+  district     String
+  pincode      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  schemes SchemePost[]
-}
-
-//////////////////////////////////////
-// SCHEME POST
-//////////////////////////////////////
-model SchemePost {
-  id             String       @id @default(uuid())
-  posterId       String
-  title          String
-  description    String
-  incomeRequired Boolean      @default(false)
-  minIncome      Int?
-  maxIncome      Int?
-  minAge         Int?
-  maxAge         Int?
-  requiredEducation EducationLevel?
-  requiredSkill  SkillLevel?
-  regionType     String?
-  state          String?
-  district       String?
-  block          String?
-  jobType        String?
-  paymentInfo    Json?
-  additionalDocs Json?
-  status         SchemeStatus @default(PENDING)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  poster        SchemePoster              @relation(fields: [posterId], references: [id])
+  // Relations
   feeds         SchemeFeed[]
   verifications BeneficiaryVerification[]
-  csvLogs       CsvLog[]
 }
 
 //////////////////////////////////////
 // SCHEME FEED
 //////////////////////////////////////
 model SchemeFeed {
-  id               String             @id @default(uuid())
+  id               String           @id @default(uuid())
   schemeId         String
   userId           String
   eligibilityScore Int?
-  status           SchemeFeedStatus   @default(NOTIFIED)
+  status           SchemeFeedStatus @default(NOTIFIED)
   appliedDocs      Json?
-  createdAt        DateTime           @default(now())
+  createdAt        DateTime         @default(now())
 
-  scheme SchemePost @relation(fields: [schemeId], references: [id])
-  user   User       @relation(fields: [userId], references: [id])
+  scheme Scheme @relation(fields: [schemeId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   @@unique([userId, schemeId])
 }
@@ -139,9 +111,9 @@ model BeneficiaryVerification {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  user       User        @relation("UserVerifications", fields: [userId], references: [id])
-  enumerator User?       @relation("Enumerator", fields: [enumeratorId], references: [id])
-  scheme     SchemePost? @relation(fields: [schemeId], references: [id])
+  user       User    @relation("UserVerifications", fields: [userId], references: [id])
+  enumerator User?   @relation("Enumerator", fields: [enumeratorId], references: [id])
+  scheme     Scheme? @relation(fields: [schemeId], references: [id])
 }
 
 //////////////////////////////////////
@@ -162,15 +134,13 @@ model Notification {
 // CSV LOG
 //////////////////////////////////////
 model CsvLog {
-  id        String    @id @default(uuid())
-  schemeId  String
-  status    JobStatus @default(PENDING)
-  filePath  String?
+  id        String   @id @default(cuid())
+  fileName  String
+  status    String // e.g., 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
+  rowCount  Int
   error     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  scheme SchemePost @relation(fields: [schemeId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 //////////////////////////////////////
@@ -192,7 +162,6 @@ enum Role {
   BENEFICIARY
   ENUMERATOR
   OFFICER
-  POSTER
   ADMIN
 }
 

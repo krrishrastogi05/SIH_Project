@@ -1,106 +1,96 @@
-// Pure TypeScript eligibility engine
+// NOTE: This is a significant rewrite to match the new Scheme model.
+
+// Beneficiary data remains mostly the same
 export interface BeneficiaryData {
   income?: number | null;
   age?: number | null;
-  gender?: string | null;
-
+  education?: string | null; // e.g., "10th Pass", "Undergraduate (UG)"
   state?: string | null;
   district?: string | null;
-  block?: string | null;
-
-  documents?: string[]; // cloudinary urls (optional)
+  pincode?: string | null;
 }
 
-export interface SchemeRuleSet {
-  incomeRequired: boolean;
-  minIncome?: number | null;
-  maxIncome?: number | null;
-
-  regionType: string; // "state" | "district" | "block"
-  state?: string | null;
-  district?: string | null;
-  block?: string | null;
-
-  additionalDocs?: Record<string, any>;
-}
+// The Scheme model from Prisma will be used directly
+// No need for a separate SchemeRuleSet interface
 
 export interface EligibilityResult {
-  passedRules: number;
-  totalRules: number;
-  eligibilityScore: number;
   isEligible: boolean;
-  breakdown: Record<string, boolean>;
+  // You can add more detailed breakdown if needed
+}
+
+// Helper to convert income string to a number range
+function parseIncome(incomeLevel: string): [number, number] {
+  if (incomeLevel.startsWith("Below")) return [0, 100000];
+  if (incomeLevel.startsWith("Above")) return [600000, Infinity];
+  const parts = incomeLevel.match(/₹([\d,]+)\s*–\s*₹([\d,]+)/);
+  if (!parts) return [0, 0];
+  const min = parseInt(parts[1].replace(/,/g, ""), 10);
+  const max = parseInt(parts[2].replace(/,/g, ""), 10);
+  return [min, max];
 }
 
 export function checkEligibility(
   user: BeneficiaryData,
-  scheme: SchemeRuleSet
+  scheme: {
+    schemeType: string;
+    baseCriteria: any; // from Prisma JSON field
+    state: string;
+    district: string;
+    pincode: string;
+  }
 ): EligibilityResult {
-  let total = 0;
-  let passed = 0;
-  const breakdown: Record<string, boolean> = {};
-
-  // -------------------------
-  // 1. Region Matching
-  // -------------------------
-  total++;
-
-  let regionPass = false;
-
-  if (scheme.regionType === "state") {
-    regionPass = user.state === scheme.state;
-  } else if (scheme.regionType === "district") {
-    regionPass = user.state === scheme.state && user.district === scheme.district;
-  } else if (scheme.regionType === "block") {
-    regionPass = (
-      user.state === scheme.state &&
-      user.district === scheme.district &&
-      user.block === scheme.block
-    );
+  // 1. Location check (applies to all schemes)
+  if (user.state !== scheme.state || user.district !== scheme.district) {
+    return { isEligible: false };
   }
 
-  breakdown.region = regionPass;
-  if (regionPass) passed++;
+  const userIncome = user.income ?? 0;
 
-  // -------------------------
-  // 2. Income Rule
-  // -------------------------
-  if (scheme.incomeRequired) {
-    total++;
+  // 2. Criteria check based on schemeType
+  switch (scheme.schemeType) {
+    case "education": {
+      const criteria = scheme.baseCriteria as {
+        incomeLevel: string;
+        minEducation: string;
+      };
+      const [minIncome, maxIncome] = parseIncome(criteria.incomeLevel);
+      if (userIncome < minIncome || userIncome > maxIncome) {
+        return { isEligible: false };
+      }
+      // NOTE: You need to implement logic to compare education levels
+      // e.g., is user.education ("UG") >= criteria.minEducation ("12th Pass")?
+      // This requires defining an order for education levels.
+      break;
+    }
 
-    const incomePass =
-      (scheme.minIncome == null || (user.income ?? 0) >= scheme.minIncome) &&
-      (scheme.maxIncome == null || (user.income ?? 0) <= scheme.maxIncome);
+    case "housing": {
+      const criteria = scheme.baseCriteria as { incomeLevel: string };
+      const [minIncome, maxIncome] = parseIncome(criteria.incomeLevel);
+      if (userIncome < minIncome || userIncome > maxIncome) {
+        return { isEligible: false };
+      }
+      // Housing criteria is a text description, requires manual officer review
+      break;
+    }
 
-    breakdown.income = incomePass;
-    if (incomePass) passed++;
+    case "employment": {
+      // NOTE: Implement logic for age and education for employment
+      break;
+    }
+
+    case "financial": {
+      const criteria = scheme.baseCriteria as { incomeLevel: string };
+      const [minIncome, maxIncome] = parseIncome(criteria.incomeLevel);
+      if (userIncome < minIncome || userIncome > maxIncome) {
+        return { isEligible: false };
+      }
+      break;
+    }
+
+    default:
+      return { isEligible: false }; // Unknown scheme type
   }
 
-  // -------------------------
-  // 3. Additional Documents
-  // -------------------------
-  if (scheme.additionalDocs && Object.keys(scheme.additionalDocs).length > 0) {
-    total++;
-
-    const userDocs = user.documents || [];
-    const reqDocs = Object.keys(scheme.additionalDocs);
-
-    const docPass = reqDocs.every((doc) =>
-      userDocs.some((url) => url.toLowerCase().includes(doc.toLowerCase()))
-    );
-
-    breakdown.documents = docPass;
-    if (docPass) passed++;
-  }
-
-  // Final score
-  const score = total === 0 ? 0 : Math.round((passed / total) * 100);
-
-  return {
-    passedRules: passed,
-    totalRules: total,
-    eligibilityScore: score,
-    isEligible: passed === total,
-    breakdown
-  };
+  // If all checks pass for the given scheme type
+  return { isEligible: true };
 }
