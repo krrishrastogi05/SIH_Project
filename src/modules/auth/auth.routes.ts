@@ -4,17 +4,22 @@ import { AuthController } from "./auth.controller.js";
 
 const router = Router();
 
-// Registration (already used elsewhere)
+// Registration (if used anywhere)
 router.post("/register", (req, res) => AuthController.register(req, res));
 
-// Beneficiary login with phone + password
+// Beneficiary phone login
 router.post("/login", (req, res) =>
   AuthController.loginWithPhone(req, res)
 );
 
-// OPTIONAL: keep a separate endpoint for email login if required
+// Generic email login (if needed)
 router.post("/login-email", (req, res) =>
   AuthController.login(req, res)
+);
+
+// NEW: Officer login via email
+router.post("/login-officer", (req, res) =>
+  AuthController.loginOfficer(req, res)
 );
 
 export default router;

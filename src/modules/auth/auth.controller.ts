@@ -7,10 +7,11 @@ import { phoneLoginSchema } from "./phone-login.schema.js";
 const authService = new AuthService();
 
 export class AuthController {
-  // existing registration (unchanged)
+  // ================= REGISTER (existing) =================
   static async register(req: Request, res: Response) {
     try {
       const result = await authService.register(req.body);
+
       res.cookie("token", result.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -28,7 +29,7 @@ export class AuthController {
     }
   }
 
-  // existing email login for officers/admin
+  // ================= EMAIL LOGIN (generic) =================
   static async login(req: Request, res: Response) {
     try {
       const parsed = loginSchema.safeParse(req.body);
@@ -63,7 +64,7 @@ export class AuthController {
     }
   }
 
-  // NEW: Beneficiary login with phone + password
+  // ================= PHONE LOGIN (beneficiary) =================
   static async loginWithPhone(req: Request, res: Response) {
     try {
       const parsed = phoneLoginSchema.safeParse(req.body);
@@ -99,6 +100,48 @@ export class AuthController {
       return res.status(401).json({
         success: false,
         message: error.message || "Invalid phone or password",
+      });
+    }
+  }
+
+  // ================= NEW: OFFICER LOGIN (email) =================
+  static async loginOfficer(req: Request, res: Response) {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json(parsed.error);
+      }
+
+      const result = await authService.login(parsed.data);
+
+      // Ensure only OFFICER or ADMIN can use this endpoint
+      if (
+        !result.user ||
+        (result.user.role !== "OFFICER" && result.user.role !== "ADMIN")
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied: Not an officer account",
+        });
+      }
+
+      res.cookie("token", result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.json({
+        success: true,
+        message: "Officer login successful",
+        data: result.user,
+        token: result.token,
+      });
+    } catch (error: any) {
+      return res.status(401).json({
+        success: false,
+        message: error.message || "Invalid email or password",
       });
     }
   }
