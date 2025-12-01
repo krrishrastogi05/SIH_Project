@@ -56,6 +56,9 @@ model User {
   beneficiaryVerifications BeneficiaryVerification[] @relation("UserVerifications")
   enumeratorVerifications  BeneficiaryVerification[] @relation("Enumerator")
   notifications            Notification[]
+
+  paymentResolutionProofs  PaymentResolutionProof[] @relation("ProofOwner")
+  reviewedResolutionProofs PaymentResolutionProof[] @relation("ProofReviewer")
 }
 
 //////////////////////////////////////
@@ -93,6 +96,8 @@ model SchemeFeed {
 
   scheme Scheme @relation(fields: [schemeId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+
+  paymentTransactions PaymentTransaction[]
 
   @@unique([userId, schemeId])
 }
@@ -143,6 +148,67 @@ model CsvLog {
   updatedAt DateTime @updatedAt
 }
 
+model PaymentErrorCode {
+  id              String               @id @default(cuid())
+  code            String               @unique // e.g. "CPE0025"
+  title           String // Short title: "Invalid Beneficiary Details"
+  technicalReason String // System-side reason / PFMS text
+  userMessage     String // Simple explanation for beneficiary
+  resolutionSteps String // How to resolve (plain text, bullet points, etc.)
+  resolver        PaymentErrorResolver // Who is expected to fix this
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id              String        @id @default(uuid())
+  schemeFeedId    String
+  errorCodeId     String?
+  transactionRef  String?       @unique // Simulated UTR / txn ID
+  amount          Int? // If you want to show amount, else optional
+  status          PaymentStatus @default(PENDING)
+  rawErrorMessage String? // If you want to store original PFMS-like message
+  simulated       Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  schemeFeed       SchemeFeed               @relation(fields: [schemeFeedId], references: [id])
+  errorCode        PaymentErrorCode?        @relation(fields: [errorCodeId], references: [id])
+  resolutionProofs PaymentResolutionProof[]
+
+  @@index([schemeFeedId])
+}
+
+model PaymentResolutionProof {
+  id                   String           @id @default(uuid())
+  paymentTransactionId String
+  userId               String // Beneficiary who submitted proof
+  description          String? // "I have now linked my Aadhaar with bank"
+  proofUrls            String[] // Uploaded file URLs (Cloudinary/S3/etc.)
+  status               ResolutionStatus @default(SUBMITTED)
+
+  reviewerId      String? // Officer who reviews the proof
+  reviewerRemarks String? // "Verified with bank statement", etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id])
+  user               User               @relation("ProofOwner", fields: [userId], references: [id])
+  reviewer           User?              @relation("ProofReviewer", fields: [reviewerId], references: [id])
+
+  @@index([paymentTransactionId])
+  @@index([userId])
+  @@index([reviewerId])
+}
+
 //////////////////////////////////////
 // AUDIT LOG
 //////////////////////////////////////
@@ -163,6 +229,7 @@ enum Role {
   ENUMERATOR
   OFFICER
   ADMIN
+  POSTER
 }
 
 enum SchemeStatus {
@@ -211,4 +278,25 @@ enum JobStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum PaymentStatus {
+  PENDING // Created but not processed
+  PROCESSING // Simulating payment in progress
+  SUCCESS // Payment completed
+  FAILED // Payment failed with some error
+}
+
+enum PaymentErrorResolver {
+  BENEFICIARY // Beneficiary has to fix (e.g. Aadhaar not linked)
+  OFFICER // Officer/department has to fix (e.g. sanction issue)
+  BANK // Bank-side issue
+  SYSTEM // PFMS/NPCI/system issue
+}
+
+enum ResolutionStatus {
+  SUBMITTED // Beneficiary uploaded proof
+  UNDER_REVIEW // Officer is checking
+  ACCEPTED // Officer accepted proof, can retry payment
+  REJECTED // Proof not sufficient, ask again
 }
