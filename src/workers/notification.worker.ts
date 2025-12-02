@@ -4,6 +4,35 @@ import { sendSMS } from "../utils/sms.js";
 import { sendWhatsApp } from "../utils/whatsapp.js";
 import { Job } from "bullmq";
 import { JobStatus } from "@prisma/client"; // 1. Import the enum
+import { Worker } from "bullmq";
+import { redis } from "../utils/redis.js";
+import { smsService } from "../utils/sms.js";
+
+const notificationWorker = new Worker(
+  "notification-queue",
+  async (job) => {
+    console.log(`Processing notification job: ${job.name}`);
+
+    // Handle OTP notifications
+    if (job.name === "send-otp") {
+      const { phone, otp } = job.data;
+      const message = `Your PM-AJAY login OTP is: ${otp}`;
+      await smsService.send(phone, message);
+      return;
+    }
+
+    // Handle new scheme eligibility notifications
+    if (job.name === "send-eligibility-notification") {
+      const { phone, beneficiaryName, schemeTitle } = job.data;
+      const message = `Dear ${beneficiaryName}, you are eligible for a new scheme: "${schemeTitle}". Please log in to the PM-AJAY portal to apply.`;
+      await smsService.send(phone, message);
+      return;
+    }
+  },
+  { connection: redis }
+);
+
+console.log("🚀 Notification worker started.");
 
 export async function processNotificationJob(job: Job) {
   const { notifId } = job.data;

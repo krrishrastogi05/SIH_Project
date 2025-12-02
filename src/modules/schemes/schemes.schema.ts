@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SchemeStatus } from "@prisma/client";
 
 const baseEducationSchema = z.object({
   incomeLevel: z.string().min(1),
@@ -66,12 +67,15 @@ export const createSchemeSchema = z.discriminatedUnion("schemeType", [
   }),
 ]);
 
+// Add this new schema for validating query parameters
 export const listSchemesQuerySchema = z.object({
-  state: z.string().optional(),
-  district: z.string().optional(),
-  search: z.string().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  query: z.object({
+    page: z.string().optional().default("1"),
+    limit: z.string().optional().default("10"),
+    schemeType: z.string().optional(),
+    state: z.string().optional(),
+    district: z.string().optional(),
+  }),
 });
 
 export const schemeIdParamSchema = z.object({
@@ -79,3 +83,13 @@ export const schemeIdParamSchema = z.object({
 });
 
 export type CreateSchemeInput = z.infer<typeof createSchemeSchema>;
+
+export const updateSchemeStatusSchema = z.object({
+  body: z.object({
+    status: z.nativeEnum(SchemeStatus),
+  }),
+});
+
+export type UpdateSchemeStatusInput = z.infer<
+  typeof updateSchemeStatusSchema
+>["body"];

@@ -1,10 +1,7 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { SchemeService } from "./schemes.service.js";
-import {
-  CreateSchemeInput,
-  listSchemesQuerySchema,
-  schemeIdParamSchema,
-} from "./schemes.schema.js";
+import { CreateSchemeInput } from "./schemes.schema.js";
+import { SchemeStatus } from "@prisma/client";
 
 export class SchemeController {
   static async createSchemeHandler(
@@ -70,6 +67,24 @@ export class SchemeController {
       return res.status(500).json({
         message: err.message || "Internal Server Error",
       });
+    }
+  }
+
+  static async updateSchemeStatus(
+    req: Request<{ id: string }, {}, { status: SchemeStatus }>,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const schemeId = req.params.id;
+      const { status } = req.body;
+
+      const scheme = await SchemeService.updateSchemeStatus(schemeId, status);
+      return res
+        .status(200)
+        .json({ message: `Scheme status updated to ${scheme.status}`, scheme });
+    } catch (err) {
+      next(err);
     }
   }
 }

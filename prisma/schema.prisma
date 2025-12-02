@@ -59,6 +59,11 @@ model User {
 
   paymentResolutionProofs  PaymentResolutionProof[] @relation("ProofOwner")
   reviewedResolutionProofs PaymentResolutionProof[] @relation("ProofReviewer")
+
+
+
+  
+  eligibleForSchemes  BeneficiaryScheme[] @relation("EligibleBeneficiaries")
 }
 
 //////////////////////////////////////
@@ -74,12 +79,21 @@ model Scheme {
   state        String
   district     String
   pincode      String
+  status       SchemeStatus @default(PENDING)
+
+  
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  eligibleUsers  BeneficiaryScheme[] @relation("EligibleSchemes")
 
   // Relations
   feeds         SchemeFeed[]
   verifications BeneficiaryVerification[]
+
+ 
+  // Optional: Add indexes for location fields if you query them often
+  @@index([state, district])
 }
 
 //////////////////////////////////////
@@ -299,4 +313,30 @@ enum ResolutionStatus {
   UNDER_REVIEW // Officer is checking
   ACCEPTED // Officer accepted proof, can retry payment
   REJECTED // Proof not sufficient, ask again
+}
+
+
+
+model BeneficiaryScheme {
+  id              String                @id @default(cuid())
+  beneficiaryId   String
+  schemeId        String
+  beneficiary     User                  @relation("EligibleBeneficiaries", fields: [beneficiaryId], references: [id])
+  scheme          Scheme                @relation("EligibleSchemes", fields: [schemeId], references: [id])
+  status          ApplicationStatus     @default(ELIGIBLE)
+  applicationData Json? // To store user's application for extraFields
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([beneficiaryId, schemeId]) // A user can only be linked to a scheme once
+  @@index([beneficiaryId])
+  @@index([schemeId])
+}
+
+// New Enum for application status
+enum ApplicationStatus {
+  ELIGIBLE    // Found by the system, can apply
+  APPLIED     // User has submitted the application
+  APPROVED    // Officer has approved the application
+  REJECTED    // Officer has rejected the application
 }

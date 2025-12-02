@@ -1,68 +1,65 @@
 import "dotenv/config";
-import { prisma } from "../db/prisma.js"
+import { prisma } from "../db/prisma.js";
 import { checkEligibility } from "../utils/eligibilityEngine.js";
+import { Worker } from "bullmq";
+import { redis } from "../utils/redis.js";
+import { notificationQueue } from "../queue/queue.js";
 
-export async function processEligibilityJob(job: any) {
-  const { schemeId } = job;
+const eligibilityWorker = new Worker(
+  "eligibility-queue",
+  async (job) => {
+    if (job.name === "check-eligibility-for-scheme") {
+      const { schemeId } = job.data;
+      console.log(`Processing eligibility for scheme: ${schemeId}`);
 
-  const scheme = await prisma.schemePost.findUnique({
-    where: { id: schemeId }
-  });
+      const scheme = await prisma.scheme.findUnique({
+        where: { id: schemeId },
+      });
+      if (!scheme || scheme.status !== "APPROVED") {
+        console.error(`Scheme ${schemeId} not found or not approved.`);
+        return;
+      }
 
-  if (!scheme) return;
+      // Fetch all verified beneficiaries to check against the scheme
+      const beneficiaries = await prisma.user.findMany({
+        where: { role: "BENEFICIARY", verificationStatus: "VERIFIED" },
+      });
 
-  const users = await prisma.user.findMany({
-    where: {
-      state: scheme.state,
-      district: scheme.district,
-      block: scheme.block,
-      role: "BENEFICIARY"
+      const eligibleBeneficiaries = beneficiaries.filter((user) =>
+        checkEligibility(user, scheme)
+      );
+
+      console.log(
+        `Found ${eligibleBeneficiaries.length} eligible beneficiaries for scheme ${scheme.title}.`
+      );
+
+      for (const beneficiary of eligibleBeneficiaries) {
+        // Create a record linking the user to the scheme
+        await prisma.beneficiaryScheme.upsert({
+          where: {
+            beneficiaryId_schemeId: {
+              beneficiaryId: beneficiary.id,
+              schemeId: scheme.id,
+            },
+          },
+          update: {},
+          create: {
+            beneficiaryId: beneficiary.id,
+            schemeId: scheme.id,
+            status: "ELIGIBLE",
+          },
+        });
+
+        // Add a job to notify the user
+        await notificationQueue.add("send-eligibility-notification", {
+          phone: beneficiary.phone,
+          beneficiaryName: beneficiary.name,
+          schemeTitle: scheme.title,
+        });
+      }
     }
-  });
+  },
+  { connection: redis }
+);
 
-  for (const user of users) {
-    const result = checkEligibility(
-      {
-        age: user.age,
-        gender: user.gender,
-        income: user.income,
-        state: user.state,
-        district: user.district,
-        block: user.block,
-        documents: user.documents
-      },
-      {
-        incomeRequired: scheme.incomeRequired,
-        minIncome: scheme.minIncome,
-        maxIncome: scheme.maxIncome,
-        regionType: scheme.regionType,
-        state: scheme.state,
-        district: scheme.district,
-        block: scheme.block,
-        additionalDocs: scheme.additionalDocs ?? {}
-      }
-    );
-
-    if (!result.isEligible) continue;
-
-    await prisma.schemeFeed.upsert({
-      where: {
-        schemeId_userId: {
-          schemeId: scheme.id,
-          userId: user.id
-        }
-      },
-      update: {
-        eligibilityScore: result.eligibilityScore
-      },
-      create: {
-        schemeId: scheme.id,
-        userId: user.id,
-        eligibilityScore: result.eligibilityScore,
-        status: "NOTIFIED"
-      }
-    });
-  }
-
-  console.log(`Eligibility job completed for scheme: ${schemeId}`);
-}
+console.log("🚀 Eligibility worker started.");

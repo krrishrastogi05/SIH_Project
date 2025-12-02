@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { validate } from "../../middlewares/validate.js";
-import { createSchemeSchema } from "./schemes.schema.js";
+import {
+  createSchemeSchema,
+  updateSchemeStatusSchema,
+  listSchemesQuerySchema, // <-- Import the new schema
+} from "./schemes.schema.js";
 import { SchemeController } from "./schemes.controller.js";
 
 const router = Router();
@@ -12,8 +16,16 @@ router.post(
   SchemeController.createSchemeHandler
 );
 
-// Public routes – no auth required
-router.get("/", (req, res) => SchemeController.listPublic(req, res));
-router.get("/:id", (req, res) => SchemeController.getById(req, res));
+// Update the GET route to use the new validation schema
+router.get("/", validate(listSchemesQuerySchema), (req, res) =>
+  SchemeController.listPublic(req, res)
+);
+
+// Route for an officer to update a scheme's status
+router.patch(
+  "/:id/status",
+  validate(updateSchemeStatusSchema),
+  SchemeController.updateSchemeStatus
+);
 
 export default router;

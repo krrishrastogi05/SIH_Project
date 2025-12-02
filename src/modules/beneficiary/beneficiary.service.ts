@@ -4,22 +4,21 @@ import { prisma } from "../../db/prisma.js";
 import { ApplyInput, UploadDocsInput } from "./beneficiary.schema.js";
 
 export class BeneficiaryService {
-
   // --------------------------
   // DASHBOARD
   // --------------------------
   static async getDashboard(userId: string) {
     const applications = await prisma.schemeFeed.findMany({
       where: { userId },
-      include: { scheme: true }
+      include: { scheme: true },
     });
 
     const verifications = await prisma.beneficiaryVerification.findMany({
       where: { userId },
       include: {
         SchemePost: true,
-        user: true
-      }
+        user: true,
+      },
     });
 
     return { applications, verifications };
@@ -29,7 +28,7 @@ export class BeneficiaryService {
   // ELIGIBLE SCHEMES LIST
   // --------------------------
   static async getEligibleSchemes(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId }});
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return [];
 
     return prisma.schemePost.findMany({
@@ -47,8 +46,8 @@ export class BeneficiaryService {
         maxAge: user.age ? { gte: user.age } : undefined,
 
         requiredEducation: user.education ?? undefined,
-        requiredSkill: user.skill ?? undefined
-      }
+        requiredSkill: user.skill ?? undefined,
+      },
     });
   }
 
@@ -56,7 +55,6 @@ export class BeneficiaryService {
   // APPLY FOR A SCHEME
   // --------------------------
   static async apply(userId: string, data: ApplyInput) {
-
     const feed = await prisma.schemeFeed.findFirst({
       where: { userId, schemeId: data.schemeId },
     });
@@ -67,8 +65,8 @@ export class BeneficiaryService {
       where: { id: feed.id },
       data: {
         status: "APPLIED",
-        appliedDocs: data.documents ?? {}
-      }
+        appliedDocs: data.documents ?? {},
+      },
     });
 
     // Also create verification entry for OFFICER
@@ -78,8 +76,8 @@ export class BeneficiaryService {
         schemeId: data.schemeId,
         status: "UNDER_REVIEW",
         remarks: "Application submitted; pending officer review",
-        documents: data.documents ?? {}
-      }
+        documents: data.documents ?? {},
+      },
     });
 
     return updated;
@@ -92,8 +90,56 @@ export class BeneficiaryService {
     return prisma.user.update({
       where: { id: userId },
       data: {
-        documents: { push: data.documents }
-      }
+        documents: { push: data.documents },
+      },
+    });
+  }
+
+  // --------------------------
+  // GET MY SCHEMES
+  // --------------------------
+  static async getMySchemes(beneficiaryId: string) {
+    return prisma.beneficiaryScheme.findMany({
+      where: { beneficiaryId },
+      include: {
+        scheme: true, // Include the full scheme details
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  // --------------------------
+  // APPLY FOR A SCHEME
+  // --------------------------
+  static async applyForScheme(
+    beneficiaryId: string,
+    schemeId: string,
+    applicationData: Record<string, any>
+  ) {
+    // Verify the user is eligible to apply
+    const link = await prisma.beneficiaryScheme.findFirst({
+      where: {
+        beneficiaryId,
+        schemeId,
+        status: "ELIGIBLE", // Can only apply if status is ELIGIBLE
+      },
+    });
+
+    if (!link) {
+      throw new Error(
+        "Not eligible to apply for this scheme or have already applied."
+      );
+    }
+
+    // Update the status to APPLIED and save the form data
+    return prisma.beneficiaryScheme.update({
+      where: { id: link.id },
+      data: {
+        status: "APPLIED",
+        applicationData,
+      },
     });
   }
 }
