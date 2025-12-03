@@ -1,3 +1,8 @@
-import Redis from "ioredis";
+import IORedis from "ioredis";
+import { config } from "../config";
 
-export const redis = new Redis(process.env.REDIS_URL as string);
+const redisClient = new IORedis(config.redisUrl, {
+  maxRetriesPerRequest: null,
+});
+
+export default redisClient;

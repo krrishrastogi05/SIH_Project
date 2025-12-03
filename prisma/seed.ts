@@ -1,173 +1,171 @@
-// prisma/seed.ts
-
-import dotenv from "dotenv";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { prisma } from "../src/db/prisma.js";
 
-dotenv.config();
+const prisma = new PrismaClient();
 
-async function seed() {
-  console.log("🌱 Starting Full Seed...");
+async function main() {
+  console.log("🌱 Starting Seed...");
 
-  // Password hash
-  const hashedPassword = await bcrypt.hash("Password123", 10);
+  // Optional: Uncomment these if you want a FULL RESET every time
+  // await prisma.beneficiaryScheme.deleteMany();
+  // await prisma.scheme.deleteMany();
+  // await prisma.user.deleteMany();
 
-  // -----------------------------------------
-  // 1️⃣ CREATE ADMIN + OFFICER
-  // -----------------------------------------
-  const admin = await prisma.user.create({
-    data: {
-      scId: "ADMIN001",  // NEW
-      name: "System Admin",
-      phone: "9000010000",
-      email: "admin@example.com",
-      password: hashedPassword,
-      role: "ADMIN",
-    },
-  });
+  const passwordHash = await bcrypt.hash("password123", 10);
 
-  const officer = await prisma.user.create({
-    data: {
-      scId: "OFFICER001",  // NEW
+  // ===========================================
+  // 1. CREATE ACTORS (Officer & Poster)
+  // ===========================================
+  
+  const officer = await prisma.user.upsert({
+    where: { email: "officer@gov.in" },
+    update: {},
+    create: {
       name: "District Officer",
-      phone: "9000010001",
-      email: "officer@example.com",
-      password: hashedPassword,
+      email: "officer@gov.in",
+      phone: "9999999999", // Dummy phone
+      password: passwordHash,
       role: "OFFICER",
       state: "Uttar Pradesh",
       district: "Lucknow",
-      block: "Bakshi Ka Talab",
+      scId: "OFFICER001"
     },
   });
-  console.log("✅ Admin + Officer created");
+  console.log("✅ Officer Created: officer@gov.in");
 
-  // -----------------------------------------
-  // 2️⃣ SCHEME POSTERS
-  // -----------------------------------------
-  const posters = [];
-  for (let i = 1; i <= 3; i++) {
-    posters.push(
-      await prisma.schemePoster.create({
-        data: {
-          name: `Scheme Poster ${i}`,
-          type: i % 2 === 0 ? "NGO" : "GOV",
-          phone: `9000020${String(i).padStart(2, "0")}`,
-          email: `poster${i}@example.com`,
-          state: "Uttar Pradesh",
-          district: "Lucknow",
-          block: "Bakshi Ka Talab",
-        },
-      })
-    );
-  }
-  console.log(`✅ Scheme Posters created: ${posters.length}`);
+  const poster = await prisma.user.upsert({
+    where: { email: "poster@gov.in" },
+    update: {},
+    create: {
+      name: "Ministry Poster",
+      email: "poster@gov.in",
+      phone: "8888888888", // Dummy phone
+      password: passwordHash,
+      role: "POSTER",
+      scId: "POSTER001"
+    },
+  });
+  console.log("✅ Poster Created: poster@gov.in");
 
-  // -----------------------------------------
-  // 3️⃣ SCHEME POSTS
-  // -----------------------------------------
-  const schemes = [];
-  const schemeTitles = [
-    "Youth Skill Development",
-    "Rural Employment Yojana",
-    "Women Financial Aid",
-  ];
-
-  for (let i = 0; i < 3; i++) {
-    schemes.push(
-      await prisma.schemePost.create({
-        data: {
-          posterId: posters[i].id,
-          title: schemeTitles[i],
-          description: "Dummy scheme description for testing.",
-          incomeRequired: true,
-          minIncome: 0,
-          maxIncome: 200000,
-          regionType: "district",
-          state: "Uttar Pradesh",
-          district: "Lucknow",
-          block: "Bakshi Ka Talab",
-          jobType: "General",
-          paymentInfo: { stipend: 1500 + i * 500 },
-          additionalDocs: { required: ["Aadhaar", "PAN"] },
-          status: i % 2 === 0 ? "APPROVED" : "PENDING",
-        },
-      })
-    );
-  }
-  console.log(`✅ Schemes created: ${schemes.length}`);
-
-  // -----------------------------------------
-  // 4️⃣ ENUMERATORS
-  // -----------------------------------------
-  const enumerators = [];
-  for (let i = 1; i <= 3; i++) {
-    enumerators.push(
-      await prisma.user.create({
-        data: {
-          scId: `ENUM${String(i).padStart(4, "0")}`,  // NEW
-          name: `Enumerator ${i}`,
-          phone: `9000030${String(i).padStart(2, "0")}`,
-          email: `enumerator${i}@example.com`,
-          password: hashedPassword,
-          role: "ENUMERATOR",
-          state: "Uttar Pradesh",
-          district: "Lucknow",
-          block: "Bakshi Ka Talab",
-        },
-      })
-    );
-  }
-  console.log(`✅ Enumerators created: ${enumerators.length}`);
-
-  // -----------------------------------------
-  // 5️⃣ BENEFICIARIES
-  // -----------------------------------------
-  const beneficiaries = [];
-  for (let i = 1; i <= 5; i++) {
-    beneficiaries.push(
-      await prisma.user.create({
-        data: {
-          scId: `SC${String(i).padStart(6, "0")}`,  // NEW - generates SC000001, SC000002, etc.
-          name: `Beneficiary ${i}`,
-          phone: `9000040${String(i).padStart(2, "0")}`,
-          email: `beneficiary${i}@example.com`,
-          password: hashedPassword,
-          role: "BENEFICIARY",
-          state: "Uttar Pradesh",
-          district: "Lucknow",
-          block: "Bakshi Ka Talab",
-          income: 50000 + i * 5000,
-          age: 20 + i,
-          gender: i % 2 === 0 ? "Male" : "Female",
-          aadhaar: `${1234 + i}${5678 + i}${9012 + i}`,  // NEW - unique aadhaar
-        },
-      })
-    );
-  }
-  console.log(`✅ Beneficiaries created: ${beneficiaries.length}`);
-
-  // -----------------------------------------
-  // 6️⃣ CREATE SCHEME FEED (Eligibility)
-  // -----------------------------------------
-  const approvedSchemes = schemes.filter((s) => s.status === "APPROVED");
-  for (const b of beneficiaries) {
-    for (const s of approvedSchemes) {
-      await prisma.schemeFeed.create({
-        data: {
-          userId: b.id,
-          schemeId: s.id,
-          eligibilityScore: Math.floor(Math.random() * 40) + 60,
-          status: "NOTIFIED",
-        },
-      });
+  // ===========================================
+  // 2. CREATE SCHEMES (PENDING APPROVAL)
+  // ===========================================
+  
+  // Scheme A: Education (Low Income, 12th Pass)
+  await prisma.scheme.upsert({
+    where: { schemeId: "SCH-EDU-2025" },
+    update: {},
+    create: {
+      schemeId: "SCH-EDU-2025",
+      title: "PM-AJAY Merit Scholarship 2025",
+      schemeType: "education",
+      state: "Uttar Pradesh",
+      district: "Lucknow",
+      pincode: "All",
+      status: "PENDING", 
+      posterId: poster.id,
+      baseCriteria: { incomeLevel: "300000", minEducation: "HIGHER_SECONDARY" },
+      extraFields: { 
+        textFields: [
+          { id: 1, label: "12th Percentage" },
+          { id: 2, label: "School Name" }
+        ], 
+        fileFields: [
+          { id: 3, label: "12th Marksheet" }
+        ] 
+      }
     }
-  }
-  console.log("✅ Scheme Feed entries created");
+  });
 
-  console.log("🎉 FULL SEED COMPLETED SUCCESSFULLY");
+  // Scheme B: Housing (Very Low Income)
+  await prisma.scheme.upsert({
+    where: { schemeId: "SCH-HOUSE-2025" },
+    update: {},
+    create: {
+      schemeId: "SCH-HOUSE-2025",
+      title: "PM Awas Yojana (Rural)",
+      schemeType: "housing",
+      state: "Uttar Pradesh",
+      district: "Lucknow",
+      pincode: "All",
+      status: "PENDING",
+      posterId: poster.id,
+      baseCriteria: { incomeLevel: "100000" }, // Must be < 1L
+      extraFields: { 
+        textFields: [{ id: 1, label: "House Type (Kutcha/Pucca)" }], 
+        fileFields: [{ id: 2, label: "Land Document" }] 
+      }
+    }
+  });
+
+  // Scheme C: Employment (Age 18-35)
+  await prisma.scheme.upsert({
+    where: { schemeId: "SCH-JOB-2025" },
+    update: {},
+    create: {
+      schemeId: "SCH-JOB-2025",
+      title: "Youth Skill Development Program",
+      schemeType: "employment",
+      state: "Uttar Pradesh",
+      district: "Lucknow",
+      pincode: "All",
+      status: "PENDING",
+      posterId: poster.id,
+      baseCriteria: { ageLimit: "35", minEducation: "MATRICULATION" }, 
+      extraFields: { textFields: [], fileFields: [] }
+    }
+  });
+
+  console.log("✅ Created 3 Pending Schemes");
+
+  // ===========================================
+  // 3. CREATE BENEFICIARIES
+  // ===========================================
+
+  // User 1: Rahul (Student) - Matches Education & Employment
+  // Phone 9000011111 -> Will be overridden to YOUR number by Notification Worker
+  await prisma.user.upsert({
+    where: { phone: "9000011111" },
+    update: {},
+    create: {
+      name: "Rahul Student",
+      phone: "9000011111", 
+      password: passwordHash,
+      role: "BENEFICIARY",
+      state: "Uttar Pradesh",
+      district: "Lucknow",
+      income: 150000, // 1.5L
+      age: 20,
+      education: "HIGHER_SECONDARY",
+      aadhaar: "111111111111",
+      scId: "BEN001"
+    }
+  });
+
+  // User 2: Suresh (Laborer) - Matches Housing Only
+  await prisma.user.upsert({
+    where: { phone: "9000022222" },
+    update: {},
+    create: {
+      name: "Suresh Worker",
+      phone: "9000022222",
+      password: passwordHash,
+      role: "BENEFICIARY",
+      state: "Uttar Pradesh",
+      district: "Lucknow",
+      income: 80000, // 0.8L (Eligible for Housing)
+      age: 45,       // Too old for Employment (Limit 35)
+      education: "MATRICULATION",
+      aadhaar: "222222222222",
+      scId: "BEN002"
+    }
+  });
+
+  console.log("✅ Created Beneficiaries (Rahul & Suresh)");
+  console.log("🎉 Seed Completed Successfully!");
 }
 
-seed()
+main()
   .catch((e) => {
     console.error("❌ Seed Error:", e);
     process.exit(1);

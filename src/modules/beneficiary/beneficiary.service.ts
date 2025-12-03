@@ -1,145 +1,44 @@
-// backend/src/modules/beneficiary/beneficiary.service.ts
-
 import { prisma } from "../../db/prisma.js";
-import { ApplyInput, UploadDocsInput } from "./beneficiary.schema.js";
 
 export class BeneficiaryService {
-  // --------------------------
-  // DASHBOARD
-  // --------------------------
+
+  // 1. Get Dashboard (Schemes where user is ELIGIBLE or APPLIED)
   static async getDashboard(userId: string) {
-    const applications = await prisma.schemeFeed.findMany({
-      where: { userId },
-      include: { scheme: true },
-    });
-
-    const verifications = await prisma.beneficiaryVerification.findMany({
-      where: { userId },
-      include: {
-        SchemePost: true,
-        user: true,
-      },
-    });
-
-    return { applications, verifications };
-  }
-
-  // --------------------------
-  // ELIGIBLE SCHEMES LIST
-  // --------------------------
-  static async getEligibleSchemes(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return [];
-
-    return prisma.schemePost.findMany({
-      where: {
-        status: "APPROVED",
-        state: user.state,
-        district: user.district,
-        block: user.block,
-
-        // Eligibility simplifications
-        minIncome: { lte: user.income ?? 999999999 },
-        maxIncome: { gte: user.income ?? 0 },
-
-        minAge: user.age ? { lte: user.age } : undefined,
-        maxAge: user.age ? { gte: user.age } : undefined,
-
-        requiredEducation: user.education ?? undefined,
-        requiredSkill: user.skill ?? undefined,
-      },
-    });
-  }
-
-  // --------------------------
-  // APPLY FOR A SCHEME
-  // --------------------------
-  static async apply(userId: string, data: ApplyInput) {
-    const feed = await prisma.schemeFeed.findFirst({
-      where: { userId, schemeId: data.schemeId },
-    });
-
-    if (!feed) return null;
-
-    const updated = await prisma.schemeFeed.update({
-      where: { id: feed.id },
-      data: {
-        status: "APPLIED",
-        appliedDocs: data.documents ?? {},
-      },
-    });
-
-    // Also create verification entry for OFFICER
-    await prisma.beneficiaryVerification.create({
-      data: {
-        userId,
-        schemeId: data.schemeId,
-        status: "UNDER_REVIEW",
-        remarks: "Application submitted; pending officer review",
-        documents: data.documents ?? {},
-      },
-    });
-
-    return updated;
-  }
-
-  // --------------------------
-  // UPLOAD USER DOCUMENTS (PROFILE DOCS)
-  // --------------------------
-  static async uploadDocuments(userId: string, data: UploadDocsInput) {
-    return prisma.user.update({
-      where: { id: userId },
-      data: {
-        documents: { push: data.documents },
-      },
-    });
-  }
-
-  // --------------------------
-  // GET MY SCHEMES
-  // --------------------------
-  static async getMySchemes(beneficiaryId: string) {
     return prisma.beneficiaryScheme.findMany({
-      where: { beneficiaryId },
-      include: {
-        scheme: true, // Include the full scheme details
+      where: { beneficiaryId: userId },
+      include: { 
+        scheme: true // Include scheme details (title, extraFields config, etc.)
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { updatedAt: 'desc' }
     });
   }
 
-  // --------------------------
-  // APPLY FOR A SCHEME
-  // --------------------------
-  static async applyForScheme(
-    beneficiaryId: string,
-    schemeId: string,
-    applicationData: Record<string, any>
-  ) {
-    // Verify the user is eligible to apply
-    const link = await prisma.beneficiaryScheme.findFirst({
-      where: {
-        beneficiaryId,
-        schemeId,
-        status: "ELIGIBLE", // Can only apply if status is ELIGIBLE
-      },
+  // 2. Apply for Scheme (Save Answers)
+  static async applyForScheme(userId: string, schemeId: string, applicationData: any) {
+    // Note: schemeId here refers to the Internal UUID
+    
+    // Check if record exists (Created by Worker)
+    const record = await prisma.beneficiaryScheme.findUnique({
+        where: { beneficiaryId_schemeId: { beneficiaryId: userId, schemeId } },
+        include: { scheme: true } // Need scheme title for notification return
     });
 
-    if (!link) {
-      throw new Error(
-        "Not eligible to apply for this scheme or have already applied."
-      );
+    if (!record) {
+        throw new Error("You are not eligible for this scheme.");
     }
 
-    // Update the status to APPLIED and save the form data
+    if (record.status !== "ELIGIBLE") {
+        throw new Error("You have already applied or this scheme is closed for you.");
+    }
+
+    // Update Status & Save Data
     return prisma.beneficiaryScheme.update({
-      where: { id: link.id },
-      data: {
-        status: "APPLIED",
-        applicationData,
-      },
+        where: { id: record.id },
+        data: {
+            status: "APPLIED",
+            applicationData: applicationData, // Save form answers
+        },
+        include: { scheme: true }
     });
   }
 }

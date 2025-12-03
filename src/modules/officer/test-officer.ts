@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "dotenv/config"; // For loading .env
 import { prisma } from "../../db/prisma.js";
 import { OfficerService } from "./officer.service.js";
 
@@ -9,12 +9,14 @@ async function run() {
     // 1) Pick an OFFICER (or fallback to ADMIN)
     const officer = await prisma.user.findFirst({
       where: {
-        OR: [{ role: "OFFICER" }, { role: "ADMIN" }]
-      }
+        OR: [{ role: "OFFICER" }, { role: "ADMIN" }],
+      },
     });
 
     if (!officer) {
-      console.log("⚠️ No OFFICER/ADMIN user found. Make sure seed has created them.");
+      console.log(
+        "⚠️ No OFFICER/ADMIN user found. Make sure seed has created them."
+      );
       return;
     }
 
@@ -22,7 +24,7 @@ async function run() {
       id: officer.id,
       name: officer.name,
       email: officer.email,
-      role: officer.role
+      role: officer.role,
     });
 
     // 2) Test: getPendingSchemes
@@ -36,19 +38,21 @@ async function run() {
       console.log("\n👉 Using first pending scheme for approve/reject test:", {
         id: firstScheme.id,
         title: firstScheme.title,
-        status: firstScheme.status
+        status: firstScheme.status,
       });
 
       // 3) Test: approveScheme
       console.log("\n📌 2) Testing approveScheme()...");
       const approved = await OfficerService.approveScheme(officer.id, {
         schemeId: firstScheme.id,
-        remarks: "Approved via test-officer script"
+        remarks: "Approved via test-officer script",
       });
       console.log("✅ approveScheme result:");
       console.dir(approved, { depth: null });
     } else {
-      console.log("\n⚠️ No PENDING schemes found. Skipping scheme approval test.");
+      console.log(
+        "\n⚠️ No PENDING schemes found. Skipping scheme approval test."
+      );
     }
 
     // 4) Test: getPendingVerifications
@@ -63,7 +67,7 @@ async function run() {
         id: firstVerification.id,
         userId: firstVerification.userId,
         schemeId: firstVerification.schemeId,
-        status: firstVerification.status
+        status: firstVerification.status,
       });
 
       // 5) Test: approveVerification
@@ -72,13 +76,15 @@ async function run() {
         officer.id,
         {
           verificationId: firstVerification.id,
-          remarks: "Approved via test-officer script"
+          remarks: "Approved via test-officer script",
         }
       );
       console.log("✅ approveVerification result:");
       console.dir(approvedVerification, { depth: null });
     } else {
-      console.log("\n⚠️ No UNDER_REVIEW verifications found. Skipping verification approval test.");
+      console.log(
+        "\n⚠️ No UNDER_REVIEW verifications found. Skipping verification approval test."
+      );
     }
   } catch (err) {
     console.error("❌ Officer test failed:", err);

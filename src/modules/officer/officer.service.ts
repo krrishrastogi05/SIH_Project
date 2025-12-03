@@ -1,149 +1,65 @@
 import { prisma } from "../../db/prisma.js";
-import {
-  ApproveRejectSchemeInput,
-  ApproveRejectVerificationInput
-} from "./officer.schema.js";
+import { eligibilityQueue } from "../../queue/queue.js"; // Import Queue
 
 export class OfficerService {
+  
+  // 1. Get Pending Schemes
   static async getPendingSchemes() {
-    return prisma.schemePost.findMany({
+    return prisma.scheme.findMany({
       where: { status: "PENDING" },
       orderBy: { createdAt: "desc" },
-      include: {
-        poster: true
-      }
     });
   }
 
-  static async approveScheme(officerId: string, data: ApproveRejectSchemeInput) {
-    const existing = await prisma.schemePost.findUnique({
-      where: { id: data.schemeId }
-    });
-
-    if (!existing) return null;
-    if (existing.status !== "PENDING") return existing;
-
-    const updated = await prisma.schemePost.update({
-      where: { id: data.schemeId },
-      data: {
-        status: "APPROVED"
-      }
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: officerId,
-        role: "OFFICER",
-        action: "SCHEME_APPROVED",
-        target: `scheme:${data.schemeId}`,
-        timestamp: new Date()
-      }
-    });
-
-    return updated;
-  }
-
-  static async rejectScheme(officerId: string, data: ApproveRejectSchemeInput) {
-    const existing = await prisma.schemePost.findUnique({
-      where: { id: data.schemeId }
-    });
-
-    if (!existing) return null;
-    if (existing.status !== "PENDING") return existing;
-
-    const updated = await prisma.schemePost.update({
-      where: { id: data.schemeId },
-      data: {
-        status: "REJECTED"
-      }
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: officerId,
-        role: "OFFICER",
-        action: "SCHEME_REJECTED",
-        target: `scheme:${data.schemeId}`,
-        timestamp: new Date()
-      }
-    });
-
-    return updated;
-  }
-
-  static async getPendingVerifications() {
-    return prisma.beneficiaryVerification.findMany({
-      where: { status: "UNDER_REVIEW" },
-      orderBy: { id: "desc" },
-      include: {
-        user: true,
-        scheme: true,
-        enumerator: true
-      }
-    });
-  }
-
-  static async approveVerification(
+  // 2. Approve Scheme & Trigger Engine
+  static async approveScheme(
     officerId: string,
-    data: ApproveRejectVerificationInput
+    // FIX: Expect an object with schemeId and remarks, not just a string
+    data: { schemeId: string; remarks?: string }
   ) {
-    const existing = await prisma.beneficiaryVerification.findUnique({
-      where: { id: data.verificationId }
+    // First, find the scheme to ensure it exists and is pending
+    const existingScheme = await prisma.scheme.findUnique({
+      where: {
+        // FIX: Use the schemeId from the data object
+        id: data.schemeId ,
+      },
     });
 
-    if (!existing) return null;
-    if (existing.status !== "UNDER_REVIEW") return existing;
+    if (!existingScheme) {
+      throw new Error("Scheme not found.");
+    }
 
-    const updated = await prisma.beneficiaryVerification.update({
-      where: { id: data.verificationId },
+    if (existingScheme.status !== "PENDING") {
+      throw new Error("Scheme is not in PENDING state.");
+    }
+
+    // Now, update the scheme to APPROVED
+    const updatedScheme = await prisma.scheme.update({
+      where: {
+        id: data.schemeId,
+      },
       data: {
         status: "APPROVED",
-        remarks: data.remarks ?? existing.remarks
-      }
+        // You can optionally save the remarks and officer who approved it
+        // This requires adding fields to your schema.prisma, e.g.,
+        // remarks String?
+        // approvedById String?
+      },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actorId: officerId,
-        role: "OFFICER",
-        action: "VERIFICATION_APPROVED",
-        target: `verification:${data.verificationId}`,
-        timestamp: new Date()
-      }
+    // If approval is successful, add a job to the eligibility queue
+    await eligibilityQueue.add("check-eligibility-for-scheme", {
+      schemeId: updatedScheme.id,
     });
 
-    return updated;
+    return updatedScheme;
   }
 
-  static async rejectVerification(
-    officerId: string,
-    data: ApproveRejectVerificationInput
-  ) {
-    const existing = await prisma.beneficiaryVerification.findUnique({
-      where: { id: data.verificationId }
+  // 3. Reject Scheme
+  static async rejectScheme(officerId: string, schemeId: string) {
+    return prisma.scheme.update({
+      where: { id: schemeId },
+      data: { status: "REJECTED" }
     });
-
-    if (!existing) return null;
-    if (existing.status !== "UNDER_REVIEW") return existing;
-
-    const updated = await prisma.beneficiaryVerification.update({
-      where: { id: data.verificationId },
-      data: {
-        status: "REJECTED",
-        remarks: data.remarks ?? existing.remarks
-      }
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: officerId,
-        role: "OFFICER",
-        action: "VERIFICATION_REJECTED",
-        target: `verification:${data.verificationId}`,
-        timestamp: new Date()
-      }
-    });
-
-    return updated;
   }
 }
