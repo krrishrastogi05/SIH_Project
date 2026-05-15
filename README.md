@@ -1,3 +1,4 @@
+
 # SIH Project Backend
 
 Backend service for the Smart India Hackathon project. This API manages authentication, beneficiary profiles, government schemes, officer operations, eligibility checks, applications, notifications, and simulated payment processing.
@@ -8,11 +9,13 @@ The backend is built with Node.js, Express, TypeScript, Prisma, PostgreSQL, Redi
 
 ### User Flow
 
-> Placeholder: add user flow diagram here.
+<img width="1448" height="1086" alt="image" src="https://github.com/user-attachments/assets/ea424417-4022-4361-81f8-4a85aaa514e5" />
+
 
 ### Schema
 
-> Placeholder: add database schema diagram here.
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/667c25dd-48af-4181-8a89-ec610373ec73" />
+
 
 ### Architecture
 
