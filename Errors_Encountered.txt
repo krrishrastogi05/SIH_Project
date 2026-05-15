@@ -1,0 +1,30 @@
+Project Progress Summary
+
+1. Initial Setup and TypeScript Errors
+   Problem: Numerous TypeScript errors during setup.
+   Solution:
+
+* Installed required type definitions (@types/node, @types/express).
+* Adjusted tsconfig.json for better compatibility.
+
+2. Resolving Critical Prisma Issues
+   Problem: Conflicting configurations between different Prisma versions caused prisma generate and prisma migrate to fail.
+   Solution:
+
+* Simplified configuration by removing prisma.config.ts and defining the database URL only in prisma/schema.prisma.
+* Fixed schema relations by running npx prisma format and manually naming ambiguous relations.
+* Added "postinstall: prisma generate" in package.json to ensure Prisma client generation after every npm install.
+
+3. Fixing Dependency Conflicts
+   Problem: npm install failed due to version conflict between cloudinary and multer-storage-cloudinary.
+   Solution: Installed using --legacy-peer-deps.
+
+4. Implementing and Testing the Auth Service
+   Problem: Needed to verify authentication logic.
+   Solution:
+
+* Created src/test-auth.ts to test AuthService.
+* Added dotenv/config to fix missing environment variables like JWT_SECRET.
+* Removed static keywords from service methods.
+* Enhanced test script to check registration and login for all user roles and clean up test users automatically.
+

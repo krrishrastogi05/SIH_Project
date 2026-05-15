@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. USER MODEL (UPDATED - Must include the arrays below)
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  phone        String   @unique
+  password     String
+  role         Role     @default(BENEFICIARY)
+
+  // Profile Fields (For Eligibility)
+  age          Int?
+  gender       String?
+  income       Int?     
+  occupation   String?
+  state        String?
+  district     String?
+  pincode      String?
+  education    String? 
+  
+  // Banking
+  bankAccount  String?
+  ifsc         String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // --- RELATIONS (THESE CAUSED YOUR ERROR) ---
+  // You must have these lines so Prisma knows a User has many Applications/Notifications
+  applications  BeneficiaryScheme[] 
+  notifications Notification[]
+}
+
+// 2. SCHEME MODEL
+model Scheme {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  schemeType   String   // education, housing, employment, financial
+  
+  // Eligibility Criteria
+  state        String   @default("All")
+  district     String   @default("All")
+  amount       Int      // Payment Amount
+  baseCriteria Json     // e.g. { "incomeLimit": 50000, "minAge": 18 }
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  applications BeneficiaryScheme[]
+}
+
+// 3. APPLICATION / BENEFICIARY SCHEME
+model BeneficiaryScheme {
+  id            String   @id @default(uuid())
+  
+  userId        String
+  schemeId      String
+  
+  // Status: APPLIED -> APPROVED -> PAID
+  status        ApplicationStatus @default(APPLIED)
+  
+  // Payment Info
+  transactionId String?  
+  paymentDate   DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relation Fields
+  user   User   @relation(fields: [userId], references: [id])
+  scheme Scheme @relation(fields: [schemeId], references: [id])
+
+  @@unique([userId, schemeId]) // Prevent duplicate applications
+}
+
+// 4. NOTIFICATIONS
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relation Fields
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  BENEFICIARY
+  OFFICER
+}
+
+enum ApplicationStatus {
+  ELIGIBLE       
+  APPLIED        
+  APPROVED       
+  PAID           
+  PAYMENT_FAILED 
+  REJECTED
+}
