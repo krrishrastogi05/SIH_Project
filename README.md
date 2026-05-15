@@ -19,7 +19,8 @@ The backend is built with Node.js, Express, TypeScript, Prisma, PostgreSQL, Redi
 
 ### Architecture
 
-> Placeholder: add backend architecture diagram here.
+<img width="1448" height="1086" alt="image" src="https://github.com/user-attachments/assets/53ff719e-8819-4783-aed5-3819ced4782d" />
+
 
 ## Tech Stack
 
