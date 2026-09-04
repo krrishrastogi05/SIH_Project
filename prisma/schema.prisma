@@ -69,7 +69,7 @@ model BeneficiaryScheme {
   status        ApplicationStatus @default(APPLIED)
   
   // Payment Info
-  transactionId String?  
+  transactionId String?  @unique
   paymentDate   DateTime?
 
   createdAt     DateTime @default(now())
