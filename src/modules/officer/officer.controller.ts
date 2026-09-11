@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {prisma} from "../../db/prisma.js"
-import { eligibilityQueue, notificationQueue } from "../../queue/queue.js";
+import { notificationQueue } from "../../queue/queue.js";
+import { publishSchemes } from "../../queue/outbox.js";
 
 
 export class OfficerController{
@@ -29,11 +30,8 @@ export class OfficerController{
             });
 
             // B. Trigger the "Unified Worker" to find eligible users
-            // This runs in the background so the API is fast
-            
-            await eligibilityQueue.add("check-eligibility-for-scheme", {
-                schemeId: scheme.id
-            });
+            // No await: if Redis is down, the outbox timer sends it later
+            publishSchemes();
 
 
            return res.status(201).json({ 

@@ -50,6 +50,7 @@ model Scheme {
   district     String   @default("All")
   amount       Int      // Payment Amount
   baseCriteria Json     // e.g. { "incomeLimit": 50000, "minAge": 18 }
+  queued       Boolean  @default(false) // Outbox flag: true when the eligibility job is in BullMQ
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
