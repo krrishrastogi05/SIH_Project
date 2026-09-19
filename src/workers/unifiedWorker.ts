@@ -44,9 +44,13 @@ const worker = new Worker("main-queue", async (job) => {
             create: { userId: user.id, schemeId: scheme.id, status: "ELIGIBLE" }
           });
 
-          // B. Create Notification
-          await prisma.notification.create({
-            data: {
+          // B. Create Notification (stable key, so a job retry does not make a second one)
+          const key = `eligible-${user.id}-${scheme.id}`;
+          await prisma.notification.upsert({
+            where: { key },
+            update: {},
+            create: {
+              key,
               userId: user.id,
               message: `New Scheme Alert: You are eligible for ${scheme.title}`
             }

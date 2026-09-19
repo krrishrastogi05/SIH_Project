@@ -87,6 +87,7 @@ model BeneficiaryScheme {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
+  key       String?  @unique // Stops a second copy of the same notification
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
