@@ -29,7 +29,7 @@ export class OfficerController{
                 }
             });
 
-            // B. Trigger the "Unified Worker" to find eligible users
+            // B. Trigger the eligibility worker to find eligible users
             // No await: if Redis is down, the outbox timer sends it later
             publishSchemes();
 

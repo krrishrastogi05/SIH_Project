@@ -150,7 +150,8 @@ async function main() {
       startedProcesses.push(startProcess("npm", ["run", "dev"]));
     }
 
-    startedProcesses.push(startProcess("npx", ["tsx", "src/workers/unifiedWorker.ts"]));
+    startedProcesses.push(startProcess("npx", ["tsx", "src/workers/eligibilityWorker.ts"]));
+    startedProcesses.push(startProcess("npx", ["tsx", "src/workers/notificationWorker.ts"]));
     await waitForServer();
 
     const health = await request<{ status: string }>("/health");

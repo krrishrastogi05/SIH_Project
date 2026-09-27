@@ -172,15 +172,16 @@ Health check:
 GET /health
 ```
 
-### Start background worker
+### Start background workers
 
-Run this in a separate terminal:
+Run each in a separate terminal:
 
 ```bash
-npx tsx src/workers/unifiedWorker.ts
+npx tsx src/workers/eligibilityWorker.ts
+npx tsx src/workers/notificationWorker.ts
 ```
 
-The worker processes queue jobs such as eligibility scans and SMS notifications.
+The eligibility worker scans users for new schemes. The notification worker sends SMS notifications.
 
 ## Build And Start Production
 

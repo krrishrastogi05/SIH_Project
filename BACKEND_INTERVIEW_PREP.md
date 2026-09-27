@@ -47,7 +47,7 @@ Use this exact order if the interviewer asks you to open the codebase.
 7. `src/modules/officer/officer.controller.ts`
    - Explain scheme creation and why it queues background eligibility work.
 
-8. `src/queue/queue.ts`, `src/workers/unifiedWorker.ts`, and `src/utils/eligibilityEngine.ts`
+8. `src/queue/queue.ts`, `src/workers/eligibilityWorker.ts`, `src/workers/notificationWorker.ts`, and `src/utils/eligibilityEngine.ts`
    - Explain the async processing flow from scheme creation to eligibility matches.
 
 ## 3. Architecture Notes
@@ -64,7 +64,8 @@ Important components:
 - `src/modules/officer`: officer scheme and payment actions.
 - `src/modules/schemes`: scheme catalog APIs.
 - `src/queue/queue.ts`: BullMQ queue producer.
-- `src/workers/unifiedWorker.ts`: background worker.
+- `src/workers/eligibilityWorker.ts`: eligibility scan worker.
+- `src/workers/notificationWorker.ts`: SMS notification worker.
 - `src/utils/eligibilityEngine.ts`: rule-based eligibility logic.
 
 ## 4. Core Flow: Auth
@@ -235,7 +236,8 @@ Interview answer:
 Files:
 
 - `src/queue/queue.ts`
-- `src/workers/unifiedWorker.ts`
+- `src/workers/eligibilityWorker.ts`
+- `src/workers/notificationWorker.ts`
 - `src/utils/eligibilityEngine.ts`
 
 The queue uses BullMQ with Redis. The API is the producer, and the worker is the consumer.
