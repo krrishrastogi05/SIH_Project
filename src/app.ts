@@ -8,6 +8,7 @@ import authRouter from "./modules/auth/auth.routes.js";
 import beneficiaryRouter from "./modules/beneficiary/beneficiary.routes.js";
 import officerRoutes from "./modules/officer/officer.routes.js"
 import schemesRoutes from "./modules/schemes/schemes.routes.js"
+import webhookRoutes from "./modules/payments/webhook.routes.js";
 
 dotenv.config();
 
@@ -22,6 +23,10 @@ app.use(
   })
 );
 
+
+// --- WEBHOOKS ---
+// Before express.json(): the signature check needs the raw body
+app.use("/api/webhooks", webhookRoutes);
 
 // --- MIDDLEWARE ---
 app.use(express.json());

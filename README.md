@@ -279,6 +279,10 @@ User 1 ---- many Notification
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
 | `REDIS_URL` | Yes | Redis connection string for BullMQ. |
 | `JWT_SECRET` | Yes | Secret used to sign and verify JWTs. |
+| `RAZORPAY_KEY_ID` | No | RazorpayX API key id. If not set, payments are simulated. |
+| `RAZORPAY_KEY_SECRET` | No | RazorpayX API key secret. |
+| `RAZORPAYX_ACCOUNT_NUMBER` | No | RazorpayX business account number that sends the payouts. |
+| `RAZORPAY_WEBHOOK_SECRET` | No | Secret used to check webhook signatures at `/api/webhooks/razorpay`. |
 
 ## Development Notes
 

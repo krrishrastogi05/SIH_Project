@@ -1,6 +1,8 @@
 import app from "./app.js"; // Added .js
 import { prisma } from "./db/prisma.js"; // Added .js
 import { publishSchemes } from "./queue/outbox.js";
+import { razorpayEnabled } from "./payments/razorpay.js";
+import { reconcilePayouts } from "./payments/payments.js";
 
 const PORT = Number(process.env.PORT) || 8000;
 
@@ -16,6 +18,11 @@ async function startServer() {
     // Retry schemes that did not get to the queue
     publishSchemes();
     setInterval(publishSchemes, 10_000);
+
+    // Check payouts with an unknown result (timeout or missed webhook)
+    if (razorpayEnabled) {
+      setInterval(() => reconcilePayouts().catch(console.error), 60_000);
+    }
 
   } catch (error) {
     console.error("Error starting server:", error);

@@ -28,11 +28,11 @@ model User {
   // Banking
   bankAccount  String?
   ifsc         String?
+  razorpayFundAccountId String? // Made one time per user, used again for each payout
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // --- RELATIONS (THESE CAUSED YOUR ERROR) ---
   // You must have these lines so Prisma knows a User has many Applications/Notifications
   applications  BeneficiaryScheme[] 
   notifications Notification[]
@@ -66,11 +66,13 @@ model BeneficiaryScheme {
   userId        String
   schemeId      String
   
-  // Status: APPLIED -> APPROVED -> PAID
+  // Status: APPLIED -> APPROVED -> PROCESSING -> PAID
   status        ApplicationStatus @default(APPLIED)
-  
+
   // Payment Info
-  transactionId String?  @unique
+  transactionId String?  @unique // Idempotency key sent to the bank: TXN_<id>_<paymentTry>
+  paymentTry    Int      @default(0) // A new try after a failure needs a new key
+  payoutId      String?  @unique // Razorpay payout id, used to find the row from a webhook
   paymentDate   DateTime?
 
   createdAt     DateTime @default(now())
@@ -104,8 +106,9 @@ enum Role {
 enum ApplicationStatus {
   ELIGIBLE       
   APPLIED        
-  APPROVED       
-  PAID           
+  APPROVED
+  PROCESSING     // Payout sent, waiting for the bank result
+  PAID
   PAYMENT_FAILED 
   REJECTED
 }

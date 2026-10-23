@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import {prisma} from "../../db/prisma.js"
-import { notificationQueue } from "../../queue/queue.js";
 import { publishSchemes } from "../../queue/outbox.js";
+import { razorpayEnabled } from "../../payments/razorpay.js";
+import { markFailed, markPaid, sendPayout } from "../../payments/payments.js";
 
 
 export class OfficerController{
@@ -77,66 +78,59 @@ export class OfficerController{
     static async processPayment(req: Request, res: Response) {
         try {
             const { applicationId } = req.body;
-            // Stable key per application. Pass it as the idempotency key to a real bank.
-            // ponytail: no real bank, so no timeout case. With a real bank, a timeout keeps the status and a job checks it later.
-            const transactionId = "TXN_" + applicationId;
+            if (!applicationId) return res.status(400).json({ message: "applicationId is required" });
 
-            //Simulating Transaction
+            // 1. Claim: check and change status in one query, so only one request can start the payment
+            const claimed = await prisma.beneficiaryScheme.update({
+                where: { id: applicationId, status: { in: ["APPROVED", "PAYMENT_FAILED"] } },
+                data: { status: "PROCESSING", paymentTry: { increment: 1 } }
+            }).catch((err) => {
+                if (err.code === "P2025") return null; // no row matched
+                throw err;
+            });
+
+            if (!claimed) {
+                return res.status(409).json({ message: "Application is not approved, or a payment is already in progress or done" });
+            }
+
+            // 2. Idempotency key. Same key = same payout at the bank. A new try after a failure gets a new key.
+            // Saved before the bank call, so we can check the payout after a crash or timeout.
+            const transactionId = `TXN_${applicationId}_${claimed.paymentTry}`;
+            const app = await prisma.beneficiaryScheme.update({
+                where: { id: applicationId },
+                data: { transactionId },
+                include: { user: true, scheme: true }
+            });
+
+            // 3a. Real bank: Razorpay. The final status comes later from the webhook.
+            if (razorpayEnabled) {
+                await sendPayout(app);
+                const { status } = await prisma.beneficiaryScheme.findUniqueOrThrow({ where: { id: applicationId } });
+                return res.status(202).json({ message: "Payout sent to bank", transactionId, status });
+            }
+
+            // 3b. No Razorpay keys: simulate the bank
             const isSuccess = Math.random() > 0.1;
 
             if (!isSuccess) {
-                
-                await prisma.beneficiaryScheme.updateMany({
-                    where: { id: applicationId, status: "APPROVED" },
-                    data: { status: "PAYMENT_FAILED" }
-                });
-
+                await markFailed({ id: applicationId });
                 return res.status(400).json({
                     message: "Bank Transaction Failed. Please try again"
                 });
             }
 
-            // Status check and update in one query, so two requests cannot both pay
-            const { count } = await prisma.beneficiaryScheme.updateMany({
-                where: { id: applicationId, status: { in: ["APPROVED", "PAYMENT_FAILED"] } },
-                data: { 
-                    status: "PAID",
-                    transactionId,
-                    paymentDate: new Date()
-                }
-            });
+            await markPaid({ id: applicationId });
 
-            if (count === 0) {
-                return res.status(409).json({ message: "Application is not approved or is already paid" });
-            }
-
-            const updatedApp = await prisma.beneficiaryScheme.findUniqueOrThrow({
-                where: { id: applicationId },
-                include: { user: true, scheme: true }
-            });
-            
-            
-            if (updatedApp.user.phone) {
-        await notificationQueue.add("send-sms", {
-          phone: updatedApp.user.phone,
-          message: `Payment Received: Rs.${updatedApp.scheme.amount} has been credited for ${updatedApp.scheme.title}. Ref: ${transactionId}`
-        });
-            }
-            
             return res.json({
                 message: "Payment Successful",
                 transactionId,
-                status:"PAID"
-            })
-            
-
-
+                status: "PAID"
+            });
         }
 
         catch (err: any) {
-      console.error(err);
-      return res.status(500).json({ message: "Payment processing error" });
+            console.error(err);
+            return res.status(500).json({ message: "Payment processing error" });
         }
-        
     }
 }
